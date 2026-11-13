@@ -523,7 +523,7 @@ async function viewLeagues(){
   return `${mine.length?`<h2 class="sec">Mina serier</h2>${mine.map(seriesRow).join('')}`:''}
     <h2 class="sec">Alla serier <span class="pill">${cat.length}</span></h2>
     <div class="search"><input id="q" type="search" placeholder="Sök serie, t.ex. U14 Skåne" value="${f.q}" autocomplete="off"></div>
-    <select id="dist" class="select"><option value="">Hela Sverige</option>${districts.map(d=>`<option value="${d}" ${d===f.district?'selected':''}>${shortDistrict(d)}</option>`).join('')}</select>
+    <select id="dist" class="select"><option value="">Hela Sverige</option>${districts.map(d=>`<option value="${d}" ${d===f.district?'selected':''}>${/^Region /.test(d)?d+' – alla distrikt':shortDistrict(d)}</option>`).join('')}</select>
     <div class="chips" style="margin-top:10px">${['',...ages].map(a=>`<button class="chip ${String(a)===String(f.age)?'on':''}" data-age="${a}">${a?'U'+a:'Alla åldrar'}</button>`).join('')}</div>
     <div class="chips" style="margin-top:8px">${[['','Alla'],['P','Pojkar'],['F','Flickor'],['H','Herr/senior']].map(([k,t])=>`<button class="chip ${k===f.gender?'on':''}" data-gender="${k}">${t}</button>`).join('')}</div>
     <div id="seriesList" style="margin-top:14px"></div>`;
@@ -531,7 +531,8 @@ async function viewLeagues(){
 async function fillSeries(){
   const cat = await catalog(), f = seriesFilter;
   const words = f.q.toLowerCase().split(/\s+/).filter(Boolean);
-  const hits = cat.filter(x=>(!f.district||x.district===f.district)&&(!f.age||String(x.age)===String(f.age))&&(!f.gender||x.gender===f.gender)
+  const inArea = x => !f.district || x.district===f.district || (/^Region /.test(f.district) && x.region===f.district);
+  const hits = cat.filter(x=>inArea(x)&&(!f.age||String(x.age)===String(f.age))&&(!f.gender||x.gender===f.gender)
     && words.every(w=>(x.name+' '+x.district+' '+(x.age?'u'+x.age:'')).toLowerCase().includes(w)));
   const el = document.getElementById('seriesList'); if(!el) return;
   const LIMIT = 80;

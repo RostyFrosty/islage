@@ -9,7 +9,7 @@ byggd på stats.swehockey.se. Kan senare paketeras med Capacitor till Android/iO
 | Tabell, poängliga, schema, matchrapport (`parse.js`) | ✅ Verifierat: SHL, HA, ungdomsgrupper |
 | Alla matcher en dag inkl. ungdom (`/GamesByDate/{datum}/ByTime/null`) | ✅ 1 356 matcher / 184 serier en söndag |
 | Seriekatalog hela Sverige (`scripts/catalog.mjs`) | ✅ 454 aktuella serier/grupper, ~25 s |
-| Livestatus för pågående matcher | ⚠ Bygger på matchrapporten – verifiera en kväll med matcher |
+| Livestatus, liveuppdatering av matchsidan och laguppställning | ✅ Verifierat i appen 2026-11-13 under kvällens matcher |
 | svenskhockey.tv-länkar till enskilda sändningar | ⛔ Kräver tillstånd (privat API) – länkar till startsidan tills vidare |
 
 ## Struktur

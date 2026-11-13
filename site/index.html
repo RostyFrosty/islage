@@ -108,6 +108,7 @@ h2.sec .pill{margin-left:auto}
 .chip .badge{width:18px;height:18px;font-size:9px;border-radius:5px;display:inline-grid;vertical-align:-4px;margin-right:4px}
 .favhead{display:flex;align-items:center;gap:10px;margin:22px 4px 10px}
 .favhead .fn{flex:1;min-width:0}.favhead .fn b{display:block;font-size:15px}.favhead .fn small{color:var(--muted);font-size:12px}
+.ver{color:var(--dim);font-size:11px;text-align:center;margin:28px 0 8px}
 /* Tabs */
 .tabs{display:flex;background:var(--card);border-radius:12px;padding:4px;margin:14px 0}
 .tabs button{flex:1;padding:9px 0;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted)}
@@ -201,6 +202,7 @@ nav.bottom svg{width:22px;height:22px}
 const ON_SITE = location.protocol === 'https:' && !/claude|anthropic|usercontent|localhost/.test(location.hostname);
 const API_BASE  = ON_SITE ? location.origin : '';          // Workern: /api/…
 const DATA_BASE = ON_SITE ? location.origin + '/data' : ''; // statiska filer från GitHub Actions
+const APP_VERSION = '1.4 · 13 nov 2026';
 const LIVE_POLL_MS = 15000;
 
 /* ---------- Lag: förkortning + färg (egna badges, inga logotyper) ---------- */
@@ -422,8 +424,8 @@ try{ /* äldre format: ['Lagnamn'] + {lag: serie-ID} */
   favs = favs.map(f => typeof f==='string' ? {team:f, lid:old[f]||''} : f);
 }catch(e){}
 const saveFavs=()=>{ try{ localStorage.setItem('isl-favs',JSON.stringify(favs)); localStorage.removeItem('isl-favleague'); }catch(e){} };
-/* utan serie-ID räcker lagnamnet (t.ex. i demo); med serie-ID måste båda stämma, eller favoriten sakna serie */
-const isFav = (t, lid) => favs.some(f => f.team===t && (!lid || !f.lid || f.lid===lid));
+/* med serie-ID måste både lag och serie stämma; utan serie-ID (t.ex. i demo) räcker lagnamnet */
+const isFav = (t, lid) => favs.some(f => f.team===t && (!lid || f.lid===lid));
 let favSeries = [];
 try{ favSeries = JSON.parse(localStorage.getItem('isl-series')||'[]'); }catch(e){}
 const isFavSeries = id => favSeries.includes(id);
@@ -432,8 +434,12 @@ let seriesFilter = {q:'', district:'', age:'', gender:''};
 const gameLeague = {};   /* match-ID → serie-ID, fylls när matchkort visas */
 function toggleFav(t, lid){
   lid = lid || '';
-  if(isFav(t, lid)){ favs = favs.filter(f => !(f.team===t && (!lid || !f.lid || f.lid===lid))); toast(`${t} borttagen från Mina lag`); }
-  else { favs = [...favs, {team:t, lid}]; toast(`★ ${t} finns nu under Mina lag`); }
+  if(isFav(t, lid)){ favs = favs.filter(f => !(f.team===t && (!lid || f.lid===lid))); toast(`${t} borttagen från Mina lag`); }
+  else {
+    /* en äldre favorit utan serie ersätts av den nya, som vet vilken serie den gäller */
+    favs = [...favs.filter(f => !(f.team===t && !f.lid)), {team:t, lid}];
+    toast(`★ ${t} finns nu under Mina lag`);
+  }
   saveFavs(); render(true);
 }
 
@@ -554,7 +560,7 @@ async function viewLeagues(){
     <select id="dist" class="select"><option value="">Hela Sverige</option>${districts.map(d=>`<option value="${d}" ${d===f.district?'selected':''}>${/^Region /.test(d)?d+' – alla distrikt':shortDistrict(d)}</option>`).join('')}</select>
     <div class="chips" style="margin-top:10px">${['',...ages].map(a=>`<button class="chip ${String(a)===String(f.age)?'on':''}" data-age="${a}">${a?'U'+a:'Alla åldrar'}</button>`).join('')}</div>
     <div class="chips" style="margin-top:8px">${[['','Alla'],['P','Pojkar'],['F','Flickor'],['H','Herr/senior']].map(([k,t])=>`<button class="chip ${k===f.gender?'on':''}" data-gender="${k}">${t}</button>`).join('')}</div>
-    <div id="seriesList" style="margin-top:14px"></div>`;
+    <div id="seriesList" style="margin-top:14px"></div>${versionLine()}`;
 }
 async function fillSeries(){
   const cat = await catalog(), f = seriesFilter;
@@ -676,10 +682,12 @@ async function lineupView(x, lid){
     ${lu.referees||lu.linesmen?`<p style="color:var(--dim);font-size:12px;margin:12px 4px">Domare: ${lu.referees||'–'}${lu.linesmen?` · Linjedomare: ${lu.linesmen}`:''}</p>`:''}`;
 }
 
+const versionLine = () => `<p class="ver">Isläge ${APP_VERSION} · av RostyFrosty</p>`;
+const versionWrap = html => html + versionLine();
 async function viewFavs(){
   header('Mina lag');
-  if(!favs.length) return empty('⭐','Inga favoritlag än.<br><br>Tryck på ☆ vid ett lag på en matchsida eller i en tabell – då samlas lagets matcher här.')
-    +`<h2 class="sec">Snabbval</h2><div class="chips" style="flex-wrap:wrap">${Object.keys(TEAMS).slice(0,14).map(t=>`<button class="chip" data-fav="${t}" data-fav-league="${['Leksands IF','MoDo Hockey','AIK','BIK Karlskoga','Södertälje SK','Västerås IK','Kalmar HC','IK Oskarshamn','Mora IK','Almtuna IS','Vimmerby HC','Östersunds IK','Nybro Vikings IF','Visby/Roma HK'].includes(t)?'20962':'20961'}">${abbr(t)}</button>`).join('')}</div>`;
+  if(!favs.length) return versionWrap(empty('⭐','Inga favoritlag än.<br><br>Tryck på ☆ vid ett lag på en matchsida eller i en tabell – då samlas lagets matcher här.')
+    +`<h2 class="sec">Snabbval</h2><div class="chips" style="flex-wrap:wrap">${Object.keys(TEAMS).slice(0,14).map(t=>`<button class="chip" data-fav="${t}" data-fav-league="${['Leksands IF','MoDo Hockey','AIK','BIK Karlskoga','Södertälje SK','Västerås IK','Kalmar HC','IK Oskarshamn','Mora IK','Almtuna IS','Vimmerby HC','Östersunds IK','Nybro Vikings IF','Visby/Roma HK'].includes(t)?'20962':'20961'}">${abbr(t)}</button>`).join('')}</div>`);
   const cat = await catalog();
   /* hämta varje serie en gång, även om flera favoritlag spelar i den */
   const lids = [...new Set(favs.map(f=>f.lid).filter(Boolean))];
@@ -688,7 +696,7 @@ async function viewFavs(){
   const fallback = favs.some(f=>!f.lid) ? await api.allGames() : [];
   /* sortera: lag med pågående match först, sedan klubb och ålder */
   const sorted = [...favs].sort((a,b)=>a.team.localeCompare(b.team,'sv') || ((cat.find(c=>c.id===a.lid)?.age||99)-(cat.find(c=>c.id===b.lid)?.age||99)));
-  return sorted.map(({team:t, lid})=>{
+  return versionWrap(sorted.map(({team:t, lid})=>{
     const meta = lid && cat.find(c=>c.id===lid);
     const pool = lid ? (perLeague[lid]||[]) : fallback;
     const gl = pool.filter(x=>x.home===t||x.away===t).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
@@ -696,7 +704,7 @@ async function viewFavs(){
     return `<div class="favhead">${badge(t)}<span class="fn"><b>${t}</b>${meta?`<small>${meta.name}${meta.district&&meta.district!=='Nationell'?' · '+shortDistrict(meta.district):''}</small>`:''}</span>
         ${lid?`<button class="pill" data-league="${lid}">Serien ›</button>`:''}<button class="pill" data-fav="${t}" data-fav-league="${lid||''}">Ta bort</button></div>
       <div class="games">${[...live,...upcoming,...recent].map(gameCard).join('')||empty('🗓️',lid?'Inga matcher hittade i serien':'Öppna en match med laget och stjärnmärk igen, så kopplas laget till sin serie')}</div>`;
-  }).join('');
+  }).join(''));
 }
 
 /* =========================================================
@@ -739,7 +747,10 @@ let toastT; function toast(m){ const el=document.getElementById('toast'); el.tex
 route = parseHash(); render();
 /* PWA: registrera service worker när sidan körs från egen domän (inte i förhandsvisningar) */
 if('serviceWorker' in navigator && location.protocol==='https:'){
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{});
+  /* ny version installerad → ladda om en gång så att den syns direkt */
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(hadController && !window.__reloaded){ window.__reloaded=true; location.reload(); } });
 }
 if(!API_BASE) setInterval(simTick,1000);
 else setInterval(()=>{

@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>Isläge – svensk hockey live</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Isläge">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b1220; --bg2:#111a2c; --card:#152036; --card2:#1b2942; --line:#24324d;
+  --text:#eef3fb; --muted:#8b9ab4; --dim:#5d6c87;
+  --ice:#7cc4ff; --live:#ff3b4e; --win:#3ddc97; --gold:#ffc94d;
+  --r:16px;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:15px}
+body{min-height:100vh;padding-bottom:calc(76px + var(--safe-b))}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+.num{font-family:"Barlow Condensed",Inter,sans-serif;font-variant-numeric:tabular-nums}
+
+/* Header */
+header.top{position:sticky;top:0;z-index:20;padding:calc(12px + var(--safe-t)) 16px 10px;
+  background:linear-gradient(var(--bg) 70%,rgba(11,18,32,.85));backdrop-filter:blur(10px)}
+.toprow{display:flex;align-items:center;gap:10px}
+.back{width:36px;height:36px;border-radius:12px;background:var(--card);display:grid;place-items:center}
+.brand{font-family:"Barlow Condensed";font-weight:800;font-size:26px;letter-spacing:.5px;flex:1}
+.brand span{color:var(--ice)}
+.brand .studio{display:block;font-family:Inter,sans-serif;font-size:11px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-top:-2px}
+.brand .studio b{color:var(--text);font-weight:700}
+.demo{font-size:11px;font-weight:600;color:var(--gold);border:1px solid rgba(255,201,77,.35);padding:3px 8px;border-radius:99px}
+
+/* Date strip */
+.dates{display:flex;gap:6px;overflow-x:auto;padding:10px 16px 4px;scrollbar-width:none}
+.dates::-webkit-scrollbar{display:none}
+.date{flex:0 0 auto;min-width:54px;padding:8px 6px;border-radius:12px;background:var(--card);text-align:center;color:var(--muted)}
+.date b{display:block;font-family:"Barlow Condensed";font-size:20px;color:var(--text)}
+.date small{font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.date.on{background:var(--ice);color:#06223a}.date.on b{color:#06223a}
+
+main{padding:6px 16px 20px;max-width:640px;margin:0 auto}
+h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:22px 4px 10px;display:flex;align-items:center;gap:8px}
+h2.sec .pill{margin-left:auto}
+
+/* Chips */
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:4px -16px 0;padding:0 16px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:8px 14px;border-radius:99px;background:var(--card);color:var(--muted);font-weight:600;font-size:13px}
+.chip.on{background:var(--text);color:var(--bg)}
+
+/* Game card */
+.card{background:var(--card);border-radius:var(--r);overflow:hidden}
+.games{display:flex;flex-direction:column;gap:8px}
+.game{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:14px 16px;background:var(--card);border-radius:var(--r);text-align:left;width:100%;position:relative}
+.game:active{transform:scale(.99);background:var(--card2)}
+.game.live{box-shadow:inset 3px 0 0 var(--live)}
+.team{display:flex;align-items:center;gap:10px;font-weight:600;min-width:0}
+.team .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.team.lose{color:var(--muted);font-weight:500}
+.score{font-family:"Barlow Condensed";font-weight:700;font-size:22px;text-align:right;line-height:1}
+.score.lose{color:var(--muted)}
+.meta{grid-column:1/-1;display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-top:4px}
+.meta .per{margin-left:auto;font-family:"Barlow Condensed";font-size:14px;letter-spacing:.3px}
+.badge{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-family:"Barlow Condensed";font-weight:800;font-size:12px;flex:0 0 auto;color:#fff;letter-spacing:.3px}
+.badge.lg{width:58px;height:58px;border-radius:18px;font-size:20px}
+.livetag{display:inline-flex;align-items:center;gap:5px;color:var(--live);font-weight:700;font-size:12px}
+.livetag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--live);animation:pulse 1.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,59,78,.7)}70%{box-shadow:0 0 0 7px rgba(255,59,78,0)}100%{box-shadow:0 0 0 0 rgba(255,59,78,0)}}
+.pill{font-size:11px;font-weight:600;padding:3px 8px;border-radius:99px;background:var(--card2);color:var(--muted)}
+.star{position:absolute;right:10px;top:8px;font-size:12px;color:var(--gold)}
+
+/* League list */
+.league{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--card);border-radius:var(--r);width:100%;text-align:left}
+.league + .league{margin-top:8px}
+.league .ic{width:40px;height:40px;border-radius:12px;background:var(--card2);display:grid;place-items:center;font-family:"Barlow Condensed";font-weight:800;color:var(--ice)}
+.league .t{flex:1}.league .t b{display:block}.league .t small{color:var(--muted)}
+.chev{color:var(--dim)}
+
+.search input,.select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;font-size:16px;outline:none;-webkit-appearance:none;appearance:none}
+.search input:focus,.select:focus{border-color:var(--ice)}
+.select{margin-top:8px;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 20px) 50%,calc(100% - 15px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+.sfav{font-size:20px;color:var(--dim);padding:4px 2px 4px 8px}.sfav.on{color:var(--gold)}
+.tv{font-size:11px;font-weight:700;color:#fff;background:#6d3df5;padding:2px 7px;border-radius:6px;margin-left:6px}
+.watch{display:block;margin:14px auto 0;padding:13px 16px;border-radius:14px;background:#6d3df5;color:#fff;font-weight:700;text-decoration:none;font-size:15px}
+.watch.live{background:linear-gradient(90deg,#ff3b4e,#6d3df5)}
+.sechead{display:flex;align-items:center;gap:8px;width:100%;text-align:left;margin:22px 0 10px;padding:0 4px}
+.sechead b{display:block;font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.sechead small{color:var(--dim);font-size:12px}.sechead span:first-child{flex:1}
+.todaylist .trow{display:flex;align-items:center;gap:10px;width:100%;padding:12px 16px;text-align:left}
+.todaylist .trow + .trow{border-top:1px solid var(--line)}
+.trow .tn{flex:1;min-width:0}.trow .tn b{font-weight:600;display:block}.trow .tn small{color:var(--muted);font-size:12px}
+.trow .cnt{font-family:"Barlow Condensed";font-size:17px;color:var(--muted);min-width:18px;text-align:right}
+/* Tabs */
+.tabs{display:flex;background:var(--card);border-radius:12px;padding:4px;margin:14px 0}
+.tabs button{flex:1;padding:9px 0;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted)}
+.tabs button.on{background:var(--card2);color:var(--text)}
+
+/* Table */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:11px;color:var(--dim);font-weight:600;text-transform:uppercase;padding:10px 4px;text-align:center}
+td{padding:9px 4px;text-align:center;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+td.tm,th.tm{text-align:left}
+td.tm div{display:flex;align-items:center;gap:8px;font-weight:600}
+td.tm .badge{width:22px;height:22px;font-size:10px;border-radius:7px}
+td.rk{color:var(--muted);width:24px}
+td.pts{font-weight:700}
+tr.cut td{border-top:2px dashed var(--dim)}
+tr.fav td{background:rgba(124,196,255,.07)}
+
+/* Game detail */
+.hero{background:radial-gradient(120% 100% at 50% 0%,#1d3157 0%,var(--card) 70%);border-radius:22px;padding:18px 16px 16px;text-align:center}
+.hero .lg{font-size:12px;color:var(--muted);margin-bottom:12px}
+.hero .row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.hero .side{display:flex;flex-direction:column;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.hero .big{font-family:"Barlow Condensed";font-weight:800;font-size:56px;line-height:1;letter-spacing:1px}
+.hero .status{margin-top:6px;font-size:13px;color:var(--muted)}
+.hero .pers{margin-top:12px;display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
+.hero .pers span{font-family:"Barlow Condensed";font-size:15px;background:rgba(255,255,255,.06);padding:3px 9px;border-radius:8px;color:var(--muted)}
+.hero .pers span.cur{color:var(--text);background:rgba(255,59,78,.18)}
+.favbtn{margin-top:12px;font-size:12px;color:var(--muted);padding:6px 12px;border-radius:99px;background:rgba(255,255,255,.06)}
+
+.statrow{padding:12px 16px}
+.statrow + .statrow{border-top:1px solid var(--line)}
+.statrow .lbl{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+.statrow .lbl span:nth-child(2){color:var(--muted)}
+.bar{display:flex;height:6px;border-radius:6px;overflow:hidden;gap:3px}
+.bar i{display:block;border-radius:6px}
+
+/* Timeline */
+.tl{padding:4px 0}
+.ev{display:grid;grid-template-columns:48px 1fr;gap:10px;padding:12px 16px;align-items:start}
+.ev + .ev{border-top:1px solid var(--line)}
+.ev .tm{font-family:"Barlow Condensed";font-size:17px;color:var(--muted);padding-top:1px}
+.ev .body{display:flex;gap:10px;align-items:flex-start}
+.ev .ico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex:0 0 auto}
+.ev.goal .ico{background:rgba(61,220,151,.15);color:var(--win)}
+.ev.pen .ico{background:rgba(255,201,77,.13);color:var(--gold)}
+.ev.gk .ico{background:rgba(124,196,255,.12);color:var(--ice)}
+.ev b{display:block;font-size:14px}
+.ev small{color:var(--muted);font-size:12px}
+.ev .sc{white-space:nowrap;margin-left:auto;font-family:"Barlow Condensed";font-weight:700;font-size:18px}
+.ev.new{animation:flash 2s}
+@keyframes flash{0%{background:rgba(61,220,151,.25)}100%{background:transparent}}
+.perhead{padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);background:var(--bg2)}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+.empty .big{font-size:36px;margin-bottom:8px}
+
+/* Bottom nav */
+nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:space-around;
+  padding:8px 8px calc(8px + var(--safe-b));background:rgba(17,26,44,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+nav.bottom button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--dim);padding:4px 0}
+nav.bottom button.on{color:var(--ice)}
+nav.bottom svg{width:22px;height:22px}
+.toast{position:fixed;left:50%;bottom:calc(90px + var(--safe-b));transform:translateX(-50%) translateY(20px);opacity:0;
+  background:var(--win);color:#032b1b;font-weight:700;padding:10px 16px;border-radius:12px;transition:.3s;z-index:40;font-size:14px;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.fade{animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<header class="top" id="hdr"></header>
+<main id="app"></main>
+<nav class="bottom" id="nav">
+  <button data-go="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Matcher</button>
+  <button data-go="leagues"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 6h3a3 3 0 0 1-3 4M7 6H4a3 3 0 0 0 3 4"/></svg>Serier</button>
+  <button data-go="favs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>Mina lag</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script id="snapshot" type="application/json">{"taken":"2026-11-13","st":{"20961":[["Färjestad BK",15,13,2,0,61,18,42],["Frölunda HC",17,10,2,5,59,40,34],["Skellefteå AIK",15,9,3,3,56,41,31],["IF Malmö Redhawks",15,6,5,4,46,37,25],["Örebro HK",15,7,3,5,36,42,25],["Luleå HF",15,6,4,5,40,39,23],["Rögle BK",16,6,3,7,43,45,23],["Djurgårdens IF",16,4,5,7,34,44,20],["Timrå IK",15,4,4,7,27,36,19],["Brynäs IF",15,5,2,8,50,43,18],["Växjö Lakers HC",15,5,2,8,38,47,18],["IF Björklöven",15,5,1,9,30,49,17],["Linköping HC",15,4,2,9,36,55,15],["HV 71",15,1,6,8,35,55,11]],"20962":[["AIK",18,12,4,2,70,48,43],["Leksands IF",18,12,2,4,77,45,39],["Kalmar HC",18,10,5,3,65,47,37],["MoDo Hockey",18,7,7,4,51,43,33],["Södertälje SK",18,9,4,5,52,42,32],["IK Oskarshamn",19,8,4,7,72,63,31],["BIK Karlskoga",18,7,4,7,47,54,26],["Västerås IK",18,6,5,7,48,48,25],["Mora IK",18,7,3,8,49,45,24],["Östersunds IK",18,4,8,6,49,55,24],["Almtuna IS",18,6,3,9,44,60,23],["Nybro Vikings IF",18,4,2,12,38,54,16],["Vimmerby HC",17,2,5,10,43,64,13],["Visby/Roma HK",18,3,2,13,38,75,12]]},"sc":{"20961":[["Viktor Lodin","Färjestad BK",15,12,8],["Oscar Lindberg","Skellefteå AIK",15,6,13],["Lucas Elvenes","Växjö Lakers HC",14,3,15],["Kieffer Bellows","Brynäs IF",15,11,4],["Graeme Clarke","Frölunda HC",17,6,9],["Rickard Hugg","Skellefteå AIK",15,5,10],["Pär Lindholm","Skellefteå AIK",15,4,11],["Johan Larsson","Brynäs IF",15,6,8],["Radim Zohorna","Färjestad BK",15,5,9],["Jakob Silfverberg","Brynäs IF",15,4,10]],"20962":[["Tyler Kelleher","Leksands IF",17,14,20],["Joel Svensson","IK Oskarshamn",19,16,15],["Calle Karlsson","IK Oskarshamn",19,12,12],["Åke Stakkestad","Leksands IF",18,8,14],["Patrik Zackrisson","Leksands IF",17,8,12],["Axel Elofsson","IK Oskarshamn",19,0,20],["Carter Souch","Södertälje SK",18,11,8],["Josh Passolt","Leksands IF",18,11,7],["Oskar Lang","Leksands IF",18,8,9],["Scott Pooley","AIK",18,8,9]]},"games":[["1110039","20961","19:00","Brynäs IF","Skellefteå AIK",10,4,"Monitor ERP Arena"],["1110040","20961","19:00","Frölunda HC","IF Malmö Redhawks",4,1,"Scandinavium"],["1110041","20961","19:00","Färjestad BK","Djurgårdens IF",3,1,"Löfbergs Arena"],["1110042","20961","19:00","HV 71","Luleå HF",2,4,"Husqvarna Garden"],["1110043","20961","19:00","IF Björklöven","Örebro HK",1,3,"Visionite Arena"],["1110044","20961","19:00","Linköping HC","Rögle BK",9,4,"Saab Arena"],["1110045","20961","19:00","Växjö Lakers HC","Timrå IK",5,0,"Vida Arena"]],"detail":{"1110039":{"p":[[4,2],[4,1],[2,1]],"sh":[[6,7],[12,6],[7,4]],"pim":[6,16],"sp":7434,"gk":[["Brynäs IF","Erik Källgren",13,17],["Skellefteå AIK","Jani Lampinen",3,9],["Skellefteå AIK","Anton Ringquist",12,16]],"ev":[[3,"49:09","goal","Skellefteå AIK","Mål – Oskar Vuollet","Assist: Pontus Johansson, Valter Lindberg · PP1","10–4"],[3,"48:46","pen","Brynäs IF","Utvisning 2 min","Johannes Kinnvall · Holding",""],[3,"41:46","goal","Brynäs IF","Mål – Calle Järnkrok","Assist: Johan Larsson, Kieffer Bellows · PP2","10–3"],[3,"41:05","pen","Skellefteå AIK","Utvisning 2 min","Oscar Lindberg · Slashing",""],[3,"40:38","goal","Brynäs IF","Mål – Kieffer Bellows","Assist: Johannes Kinnvall, Jakob Silfverberg · PP1","9–3"],[2,"32:13","goal","Skellefteå AIK","Mål – Hudson Fasching","Assist: Pontus Johansson, Pär Lindholm · PP1","8–3"],[2,"30:59","goal","Brynäs IF","Mål – Bobby Trivigno","Assist: Jaret Anderson-Dolan · SH1","8–2"],[2,"26:01","goal","Brynäs IF","Mål – Kieffer Bellows","Assist: Johannes Kinnvall, Jakob Silfverberg · PP1","7–2"],[2,"21:28","gk","Skellefteå AIK","Målvakt in","Anton Ringquist",""],[2,"21:28","goal","Brynäs IF","Mål – Johan Larsson","Assist: Robert Hägg","6–2"],[2,"20:21","goal","Brynäs IF","Mål – Mattias Norlinder","Assist: Anton Rödin, Oskar Lindblom","5–2"],[1,"12:33","goal","Brynäs IF","Mål – Axel Rindell","Assist: Simon Bertilsson, Oskar Lindblom","4–2"],[1,"07:29","goal","Brynäs IF","Mål – Jakob Silfverberg","Ingen assist","3–2"],[1,"07:17","goal","Skellefteå AIK","Mål – Zeb Forsfjäll","Assist: Oskar Vuollet, Jonathan Davidsson","2–2"],[1,"07:01","goal","Skellefteå AIK","Mål – Oskar Vuollet","Assist: Hudson Fasching, Pär Lindholm · PP1","2–1"],[1,"05:19","pen","Brynäs IF","Utvisning 2 min","Julien Gauthier · Holding",""],[1,"04:33","goal","Brynäs IF","Mål – Kieffer Bellows","Assist: Calle Järnkrok","2–0"],[1,"02:35","goal","Brynäs IF","Mål – Linus Ölund","Assist: Axel Jonsson-Fjällby, Bobby Trivigno","1–0"]]},"1110040":{"p":[[0,0],[3,1],[1,0]],"sh":[[8,4],[9,11],[3,8]],"pim":[27,31],"sp":11603,"gk":[["Frölunda HC","Lars Johansson",22,23],["IF Malmö Redhawks","Oskar Blomgren",16,19]],"ev":[[3,"58:23","goal","Frölunda HC","Mål – Jacob Peterson","Assist: Noah Hasa, Samuel Fagemo","4–1"],[2,"39:53","goal","Frölunda HC","Mål – Bosse Meijer","Assist: Graeme Clarke, Patrik Puistola","3–1"],[2,"38:32","goal","Frölunda HC","Mål – Graeme Clarke","Assist: Max Lindholm, Linus Högberg · PP1","2–1"],[2,"38:32","pen","Frölunda HC","Utvisning 5 min","Filip Cederqvist · Fighting",""],[2,"38:32","pen","IF Malmö Redhawks","Utvisning 5 min","Filip Björkman · Fighting",""],[2,"37:49","goal","Frölunda HC","Mål – Max Lindholm","Assist: Samuel Johannesson, Erik Thorell","1–1"],[2,"30:32","goal","IF Malmö Redhawks","Mål – Carl Persson","Assist: Fredrik Händemark, Lauri Pajuniemi · PP1","0–1"],[2,"29:31","pen","Frölunda HC","Utvisning 2 min","Linus Högberg · Tripping",""]]},"1110041":{"p":[[1,0],[0,0],[2,1]],"sh":[[6,6],[13,6],[13,12]],"pim":[37,39],"sp":8250,"gk":[["Färjestad BK","Emil Larmi",23,24],["Djurgårdens IF","Daniel Marmenlind",29,32]],"ev":[[3,"59:11","goal","Färjestad BK","Mål – Joakim Nygård","Ingen assist","3–1"],[3,"56:27","goal","Färjestad BK","Mål – Viktor Lodin","Assist: Marian Studenic, Axel Bergkvist","2–1"],[3,"46:37","goal","Djurgårdens IF","Mål – Lucas Carlsson","Assist: Philip Holm, Mathias Emilio Pettersen","1–1"],[2,"29:52","pen","Färjestad BK","Utvisning 5 min","Petteri Lindbohm · Fighting",""],[2,"29:52","pen","Djurgårdens IF","Utvisning 5 min","Nikolas Brouillard · Fighting",""],[1,"18:17","goal","Färjestad BK","Mål – Per Åslund","Assist: Viktor Lodin, Marian Studenic · PP1","1–0"],[1,"16:51","pen","Djurgårdens IF","Utvisning 2 min","Marcus Krüger · Tripping",""]]},"1110042":{"p":[[0,2],[2,0],[0,2]],"sh":[[12,8],[15,7],[9,7]],"pim":[2,4],"sp":6800,"gk":[["HV 71","Felix Sandström",18,21],["Luleå HF","Joel Lassinantti",34,36]],"ev":[[3,"59:14","goal","Luleå HF","Mål – Ben Tardif","Assist: Mathias Bromé · SH1","2–4"],[3,"58:09","gk","HV 71","Målvakt ut","Felix Sandström",""],[3,"49:31","goal","Luleå HF","Mål – Brian O'neill","Assist: Ben Tardif, Oskari Laaksonen","2–3"],[2,"36:22","goal","HV 71","Mål – Pavol Regenda","Assist: Hampus Eriksson, Andreas Borgman","2–2"],[2,"32:52","goal","HV 71","Mål – Mike Hardman","Assist: Hugo Fransson, Justin Glenn Kloos","1–2"],[1,"17:06","goal","Luleå HF","Mål – Oscar Engsund","Assist: Pontus Andreasson, Isac Hedqvist","0–2"],[1,"12:25","goal","Luleå HF","Mål – Pontus Själin","Assist: William Håkansson, Pontus Andreasson","0–1"]]},"1110043":{"p":[[0,0],[1,0],[0,3]],"sh":[[9,10],[13,7],[1,10]],"pim":[2,8],"sp":5060,"gk":[["IF Björklöven","Lassi Lehtinen",24,26],["Örebro HK","Filip Larsson",22,23]],"ev":[[3,"58:58","goal","Örebro HK","Mål – Milton Oscarson","Assist: Robin Salo","1–3"],[3,"57:07","gk","IF Björklöven","Målvakt ut","Lassi Lehtinen",""],[3,"49:05","goal","Örebro HK","Mål – Max Veronneau","Assist: David Quenneville","1–2"],[3,"47:53","goal","Örebro HK","Mål – Kalle Kossila","Assist: David Quenneville","1–1"],[2,"23:39","goal","IF Björklöven","Mål – Fredrik Forsberg","Ingen assist","1–0"]]},"1110044":{"p":[[4,1],[2,2],[3,1]],"sh":[[10,11],[9,16],[7,12]],"pim":[29,10],"sp":6262,"gk":[["Linköping HC","Marcus Högberg",35,39],["Rögle BK","Arvid Holm",7,13],["Rögle BK","Calle Clang",10,13]],"ev":[[3,"59:30","goal","Linköping HC","Mål – Zion Nybeck","Assist: Brendan Shinnimin, Johan Södergran","9–4"],[3,"44:33","goal","Linköping HC","Mål – Adam Hofbauer","Assist: Zion Nybeck","8–4"],[3,"43:17","goal","Rögle BK","Mål – Mark Friedman","Assist: Fredrik Olofsson, Dennis Everberg","7–4"],[3,"41:38","goal","Linköping HC","Mål – Arvid Degerstedt","Assist: Johan Södergran, Oscar Fantenberg","7–3"],[2,"34:46","goal","Rögle BK","Mål – Joel Kellman","Assist: Calle Själin, Fredrik Olofsson · PP1","6–3"],[2,"32:21","goal","Rögle BK","Mål – Tinus Luc Koblar","Assist: Filip Johansson, Oskar Jellvik","6–2"],[2,"27:41","goal","Linköping HC","Mål – Remi Elie","Assist: Zion Nybeck, Jakub Vrana","6–1"],[2,"20:38","goal","Linköping HC","Mål – Remi Elie","Assist: Loke Krantz, Jakub Vrana · PP1","5–1"],[1,"18:07","goal","Linköping HC","Mål – Remi Elie","Assist: Zion Nybeck, Jakub Vrana","4–1"],[1,"16:52","goal","Rögle BK","Mål – Lubos Horky","Assist: Dennis Everberg, Mark Friedman","3–1"],[1,"15:49","goal","Linköping HC","Mål – Loke Krantz","Assist: Linus Hultström, Remi Elie · PP1","3–0"],[1,"13:04","goal","Linköping HC","Mål – Adam Hofbauer","Ingen assist","2–0"],[1,"10:29","goal","Linköping HC","Mål – Jakub Vrana","Assist: Remi Elie","1–0"]]},"1110045":{"p":[[1,0],[3,0],[1,0]],"sh":[[5,10],[11,7],[3,12]],"pim":[4,8],"sp":5134,"gk":[["Växjö Lakers HC","Ludvig Persson",29,29],["Timrå IK","Jacob Johansson",9,13],["Timrå IK","Jonas Gunnarsson",5,6]],"ev":[[3,"53:10","goal","Växjö Lakers HC","Mål – Eddie Levin","Assist: Matias Mäntykivi, Sebastian Aho","5–0"],[2,"36:04","goal","Växjö Lakers HC","Mål – Kalle Kratz","Assist: Brian Cooper, Morgan Anderberg","4–0"],[2,"35:05","goal","Växjö Lakers HC","Mål – Eemeli Suomi","Assist: Sebastian Strandberg, Brogan Rafferty","3–0"],[2,"29:53","goal","Växjö Lakers HC","Mål – Sebastian Strandberg","Assist: Brian Cooper, Peter Cehlarik","2–0"],[1,"05:46","goal","Växjö Lakers HC","Mål – Lucas Elvenes","Assist: Brogan Rafferty, Joel Persson · PP1","1–0"],[1,"04:21","pen","Timrå IK","Utvisning 2 min","Erik Walli Walterholm · Delay of game",""]]}},"up":[["20962","15:00","Vimmerby HC","Nybro Vikings IF","VBO Arena"],["20962","18:00","Almtuna IS","BIK Karlskoga","Gränby Ishallar A-hall"],["20961","15:15","HV 71","Timrå IK","Husqvarna Garden"],["20961","15:15","IF Malmö Redhawks","Växjö Lakers HC","Malmö Arena"],["20961","15:15","Rögle BK","Frölunda HC","Catena Arena"],["20961","18:00","IF Björklöven","Brynäs IF","Visionite Arena"],["20961","18:00","Luleå HF","Färjestad BK","Coop Norrbotten Arena"],["20961","18:00","Skellefteå AIK","Linköping HC","Skellefteå Kraft Arena"],["20961","18:00","Örebro HK","Djurgårdens IF","Behrn Arena"]]}
+</script>
+<script id="bundled-catalog" type="application/json">{"season": "2026-27", "updated": "2026-11-13T08:00:00Z", "count": 454, "series": [{"id": "20961", "name": "SHL", "family": "SHL", "district": "Nationell", "region": "", "age": null, "gender": "H", "kind": "senior"}, {"id": "20962", "name": "HockeyAllsvenskan", "family": "HockeyAllsvenskan", "district": "Nationell", "region": "", "age": null, "gender": "H", "kind": "senior"}, {"id": "21041", "name": "Hockeyettan", "family": "Hockeyettan", "district": "Nationell", "region": "", "age": null, "gender": "H", "kind": "senior"}, {"id": "20960", "name": "SDHL", "family": "SDHL", "district": "Nationell", "region": "", "age": null, "gender": "F", "kind": "senior"}, {"id": "17795", "name": "U16 SM-slutspel", "family": "U16 SM-slutspel", "district": "Nationell", "region": "", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "19937", "name": "U18 Nationell Norra", "family": "U18 Nationell", "district": "Nationell", "region": "", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "19938", "name": "U18 Nationell Södra", "family": "U18 Nationell", "district": "Nationell", "region": "", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "19944", "name": "U18 SM-slutspel", "family": "U18 Nationell", "district": "Nationell", "region": "", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21000", "name": "U19 Dam Nationell Norra", "family": "U19 Nationell", "district": "Nationell", "region": "", "age": 19, "gender": "F", "kind": "ungdom"}, {"id": "21001", "name": "U19 Dam Nationell Södra", "family": "U19 Nationell", "district": "Nationell", "region": "", "age": 19, "gender": "F", "kind": "ungdom"}, {"id": "22401", "name": "Play Off till U20 Nationell", "family": "U20 Nationell", "district": "Nationell", "region": "", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "19767", "name": "Svenska Cupen U20", "family": "Svenska Cupen U20", "district": "Nationell", "region": "", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "20963", "name": "U20 Herr Nationell Norra", "family": "U20 Nationell", "district": "Nationell", "region": "", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "20964", "name": "U20 Herr Nationell Södra", "family": "U20 Nationell", "district": "Nationell", "region": "", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "22158", "name": "U20 SM-slutspel", "family": "U20 Nationell", "district": "Nationell", "region": "", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "20958", "name": "NDHL Norra", "family": "NDHL", "district": "Nationell", "region": "", "age": null, "gender": "F", "kind": "senior"}, {"id": "20959", "name": "NDHL Södra", "family": "NDHL", "district": "Nationell", "region": "", "age": null, "gender": "F", "kind": "senior"}, {"id": "21969", "name": "Svenska Universitetshockeyligan", "family": "Svenska Universitetshockeyligan", "district": "Nationell", "region": "", "age": null, "gender": "H", "kind": "senior"}, {"id": "21970", "name": "Svenska Universitetshockeyligan · Slutspel", "family": "Svenska Universitetshockeyligan", "district": "Nationell", "region": "", "age": null, "gender": "H", "kind": "senior"}, {"id": "21931", "name": "TV-pucken Flickor", "family": "TV-pucken Flickor", "district": "Nationell", "region": "", "age": null, "gender": "F", "kind": "senior"}, {"id": "21932", "name": "TV-pucken Flickor · Grupp A FLICKOR", "family": "TV-pucken Flickor", "district": "Nationell", "region": "", "age": null, "gender": "F", "kind": "senior"}, {"id": "21933", "name": "TV-pucken Flickor · Grupp B FLICKOR", "family": "TV-pucken Flickor", "district": "Nationell", "region": "", "age": null, "gender": "F", "kind": "senior"}, {"id": "21934", "name": "TV-pucken Flickor · Grupp C FLICKOR", "family": "TV-pucken Flickor", "district": "Nationell", "region": "", "age": null, "gender": "F", "kind": "senior"}, {"id": "21935", "name": "TV-pucken Flickor · Grupp D FLICKOR", "family": "TV-pucken Flickor", "district": "Nationell", "region": "", "age": null, "gender": "F", "kind": "senior"}, {"id": "21877", "name": "TV-pucken Pojkar", "family": "TV-pucken Pojkar", "district": "Nationell", "region": "", "age": null, "gender": "P", "kind": "senior"}, {"id": "21878", "name": "TV-pucken Pojkar · Grupp A POJKAR", "family": "TV-pucken Pojkar", "district": "Nationell", "region": "", "age": null, "gender": "P", "kind": "senior"}, {"id": "21879", "name": "TV-pucken Pojkar · Grupp B POJKAR", "family": "TV-pucken Pojkar", "district": "Nationell", "region": "", "age": null, "gender": "P", "kind": "senior"}, {"id": "21880", "name": "TV-pucken Pojkar · Grupp C POJKAR", "family": "TV-pucken Pojkar", "district": "Nationell", "region": "", "age": null, "gender": "P", "kind": "senior"}, {"id": "21881", "name": "TV-pucken Pojkar · Grupp D POJKAR", "family": "TV-pucken Pojkar", "district": "Nationell", "region": "", "age": null, "gender": "P", "kind": "senior"}, {"id": "21936", "name": "TV-pucken Slutspel FLICKOR", "family": "TV-pucken Flickor", "district": "Nationell", "region": "", "age": null, "gender": "F", "kind": "senior"}, {"id": "21882", "name": "TV-pucken Slutspel POJKAR", "family": "TV-pucken Pojkar", "district": "Nationell", "region": "", "age": null, "gender": "P", "kind": "senior"}, {"id": "21390", "name": "U9", "family": "U9", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "21391", "name": "U10", "family": "U10", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "21392", "name": "U11", "family": "U11", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "21432", "name": "U11F", "family": "U11F", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 11, "gender": "F", "kind": "ungdom"}, {"id": "21393", "name": "U12", "family": "U12", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "21430", "name": "U13", "family": "U13", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21689", "name": "U13P", "family": "U13P", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21431", "name": "U14", "family": "U14", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22077", "name": "U14F", "family": "U14F", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "21940", "name": "U14P", "family": "U14P", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21954", "name": "U15/16", "family": "U15/16", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22175", "name": "U16 DM", "family": "U16 DM", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21829", "name": "U18H", "family": "U18H", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21535", "name": "U20 H", "family": "U20 H", "district": "Bohuslän-Dals", "region": "Region Syd", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21991", "name": "U9", "family": "U9", "district": "Dalarna", "region": "Region Väst", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "21974", "name": "U10", "family": "U10", "district": "Dalarna", "region": "Region Väst", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "21972", "name": "U11", "family": "U11", "district": "Dalarna", "region": "Region Väst", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "21888", "name": "U12", "family": "U12", "district": "Dalarna", "region": "Region Väst", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "21770", "name": "U13", "family": "U13", "district": "Dalarna", "region": "Region Väst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21754", "name": "U14", "family": "U14", "district": "Dalarna", "region": "Region Väst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22277", "name": "U14 DM", "family": "U14 DM", "district": "Dalarna", "region": "Region Väst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21894", "name": "U14 flickor", "family": "U14 flickor", "district": "Dalarna", "region": "Region Väst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "21753", "name": "U15", "family": "U15", "district": "Dalarna", "region": "Region Väst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22276", "name": "U15 DM", "family": "U15 DM", "district": "Dalarna", "region": "Region Väst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21663", "name": "U16", "family": "U16", "district": "Dalarna", "region": "Region Väst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22275", "name": "U16 DM", "family": "U16 DM", "district": "Dalarna", "region": "Region Väst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22041", "name": "U9", "family": "U9", "district": "Gästrikland", "region": "Region Väst", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "22040", "name": "U10", "family": "U10", "district": "Gästrikland", "region": "Region Väst", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "22061", "name": "U10 flickor", "family": "U10 flickor", "district": "Gästrikland", "region": "Region Väst", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "22005", "name": "U11", "family": "U11", "district": "Gästrikland", "region": "Region Väst", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "21928", "name": "U12", "family": "U12", "district": "Gästrikland", "region": "Region Väst", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "22056", "name": "U12F", "family": "U12F", "district": "Gästrikland", "region": "Region Väst", "age": 12, "gender": "F", "kind": "ungdom"}, {"id": "21843", "name": "U13", "family": "U13", "district": "Gästrikland", "region": "Region Väst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21826", "name": "U14", "family": "U14", "district": "Gästrikland", "region": "Region Väst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21816", "name": "U15", "family": "U15", "district": "Gästrikland", "region": "Region Väst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21815", "name": "U16", "family": "U16", "district": "Gästrikland", "region": "Region Väst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21745", "name": "U9P", "family": "U9P", "district": "Göteborg", "region": "Region Syd", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "21801", "name": "U10F", "family": "U10F", "district": "Göteborg", "region": "Region Syd", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "21747", "name": "U10P", "family": "U10P", "district": "Göteborg", "region": "Region Syd", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "21746", "name": "U11P", "family": "U11P", "district": "Göteborg", "region": "Region Syd", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "21799", "name": "U12F", "family": "U12F", "district": "Göteborg", "region": "Region Syd", "age": 12, "gender": "F", "kind": "ungdom"}, {"id": "21841", "name": "U12P", "family": "U12P", "district": "Göteborg", "region": "Region Syd", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "21862", "name": "U13P · U13 P Blå", "family": "U13P", "district": "Göteborg", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21863", "name": "U13P · U13 P Vit", "family": "U13P", "district": "Göteborg", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21839", "name": "U14P · U14 P Blå", "family": "U14P", "district": "Göteborg", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21840", "name": "U14P · U14 P Vit", "family": "U14P", "district": "Göteborg", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22184", "name": "GIF Grupp 1 Blå", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22265", "name": "GIF Grupp 1 Blå dag 2", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22185", "name": "GIF Grupp 1 Vit", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22266", "name": "GIF Grupp 1 Vit dag 2", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22186", "name": "GIF Grupp 2", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22187", "name": "GIF Grupp 3", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22188", "name": "GIF Grupp 4", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22183", "name": "GIF U15 Cup", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22336", "name": "GIF U15 Cup · Pl. 1-4", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22339", "name": "GIF U15 Cup · Pl. 13-16", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22340", "name": "GIF U15 Cup · Pl. 17-20", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22341", "name": "GIF U15 Cup · Pl. 21-24", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22342", "name": "GIF U15 Cup · Pl. 25-27", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22343", "name": "GIF U15 Cup · Pl. 28-29", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22337", "name": "GIF U15 Cup · Pl. 5-8", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22338", "name": "GIF U15 Cup · Pl. 9-12", "family": "GIF U15 Cup", "district": "Göteborg", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22172", "name": "U16P · U16 DM Grupp A", "family": "U16P", "district": "Göteborg", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22173", "name": "U16P · U16 DM Grupp B", "family": "U16P", "district": "Göteborg", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22174", "name": "U16P · U16 DM Grupp C", "family": "U16P", "district": "Göteborg", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21834", "name": "U16P · U16 P Division 1 Blå", "family": "U16P", "district": "Göteborg", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21835", "name": "U16P · U16 P Division 1 Vit", "family": "U16P", "district": "Göteborg", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21836", "name": "U16P · U16 P Division 2 Blå", "family": "U16P", "district": "Göteborg", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21838", "name": "U16P · U16 P Division 2 Blå/Vit", "family": "U16P", "district": "Göteborg", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21837", "name": "U16P · U16 P Division 2 Vit", "family": "U16P", "district": "Göteborg", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21795", "name": "U16F", "family": "U16F", "district": "Göteborg", "region": "Region Syd", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "22190", "name": "Hockeyfyran", "family": "Hockeyfyran", "district": "Göteborg", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "22112", "name": "Senior DM", "family": "Senior DM", "district": "Jämtl. Härjedalen", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21886", "name": "U20 DM Poolspel", "family": "U20 DM", "district": "Norrbotten", "region": "Region Norr", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21887", "name": "U20 DM Slutfinal", "family": "U20 DM", "district": "Norrbotten", "region": "Region Norr", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21570", "name": "Stora DM", "family": "Stora DM", "district": "Norrbotten", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21851", "name": "U9-U12", "family": "U9-U12", "district": "Region Norr", "region": "Region Norr", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "21859", "name": "U10-U12F", "family": "U10-U12F", "district": "Region Norr", "region": "Region Norr", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "21668", "name": "U13 Pojk Norra A", "family": "U13", "district": "Region Norr", "region": "Region Norr", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21669", "name": "U13 Pojk Norra B", "family": "U13", "district": "Region Norr", "region": "Region Norr", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21670", "name": "U13 Pojk Norra C", "family": "U13", "district": "Region Norr", "region": "Region Norr", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21675", "name": "U13 Pojk Södra A", "family": "U13", "district": "Region Norr", "region": "Region Norr", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21676", "name": "U13 Pojk Södra B", "family": "U13", "district": "Region Norr", "region": "Region Norr", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21677", "name": "U13 Pojk Södra C", "family": "U13", "district": "Region Norr", "region": "Region Norr", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21975", "name": "F13-16 · U13-16 Flick Extra Region Norr", "family": "F13-16", "district": "Region Norr", "region": "Region Norr", "age": 13, "gender": "F", "kind": "ungdom"}, {"id": "21965", "name": "F13-16 · U13-16 Flick Norra Region Norr", "family": "F13-16", "district": "Region Norr", "region": "Region Norr", "age": 13, "gender": "F", "kind": "ungdom"}, {"id": "21966", "name": "F13-16 · U13-16 Flick Södra Region Norr", "family": "F13-16", "district": "Region Norr", "region": "Region Norr", "age": 13, "gender": "F", "kind": "ungdom"}, {"id": "22121", "name": "U13-U14 Pojk Anpassade spelformer Region Norr", "family": "U13", "district": "Region Norr", "region": "Region Norr", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21684", "name": "U14 Pojk Mellersta", "family": "U14", "district": "Region Norr", "region": "Region Norr", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21682", "name": "U14 Pojk Norra A", "family": "U14", "district": "Region Norr", "region": "Region Norr", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21683", "name": "U14 Pojk Norra B", "family": "U14", "district": "Region Norr", "region": "Region Norr", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21685", "name": "U14 Pojk Södra A", "family": "U14", "district": "Region Norr", "region": "Region Norr", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21686", "name": "U14 Pojk Södra B", "family": "U14", "district": "Region Norr", "region": "Region Norr", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21678", "name": "U16 Pojk Div 1 Norra A", "family": "U16 div 1", "district": "Region Norr", "region": "Region Norr", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21679", "name": "U16 Pojk Div 1 Norra B", "family": "U16 div 1", "district": "Region Norr", "region": "Region Norr", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21680", "name": "U16 Pojk Div 1 Norra C", "family": "U16 div 1", "district": "Region Norr", "region": "Region Norr", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21681", "name": "U16 Pojk Div 1 Norra D", "family": "U16 div 1", "district": "Region Norr", "region": "Region Norr", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21312", "name": "U16 Pojk Regional Norr A", "family": "U16 Regional", "district": "Region Norr", "region": "Region Norr", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21313", "name": "U16 Pojk Regional Norr B", "family": "U16 Regional", "district": "Region Norr", "region": "Region Norr", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21300", "name": "U18 Herr Division 1 Norr A", "family": "U18 Div 1", "district": "Region Norr", "region": "Region Norr", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21301", "name": "U18 Herr Division 1 Norr B", "family": "U18 Div 1", "district": "Region Norr", "region": "Region Norr", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21291", "name": "U18 Herr Regional Norr", "family": "U18 Regional", "district": "Region Norr", "region": "Region Norr", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21335", "name": "U18 Herr Regional Norr Forts", "family": "U18 Regional", "district": "Region Norr", "region": "Region Norr", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21334", "name": "U18 Herr Regional Norr Topp 6", "family": "U18 Regional", "district": "Region Norr", "region": "Region Norr", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21778", "name": "U19 Dam Regional Norr Norra", "family": "U19 Regional", "district": "Region Norr", "region": "Region Norr", "age": 19, "gender": "F", "kind": "ungdom"}, {"id": "21779", "name": "U19 Dam Regional Norr Södra", "family": "U19 Regional", "district": "Region Norr", "region": "Region Norr", "age": 19, "gender": "F", "kind": "ungdom"}, {"id": "21810", "name": "U19 Dam Regional Norr Utbyten", "family": "U19 Regional", "district": "Region Norr", "region": "Region Norr", "age": 19, "gender": "F", "kind": "ungdom"}, {"id": "21294", "name": "U20 Herr Regional Norr A", "family": "U20 Regional", "district": "Region Norr", "region": "Region Norr", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21295", "name": "U20 Herr Regional Norr B", "family": "U20 Regional", "district": "Region Norr", "region": "Region Norr", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21664", "name": "HockeyTrean Herr Region Norr A", "family": "HockeyTrean", "district": "Region Norr", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21665", "name": "HockeyTrean Herr Region Norr B", "family": "HockeyTrean", "district": "Region Norr", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21666", "name": "HockeyTrean Herr Region Norr C", "family": "HockeyTrean", "district": "Region Norr", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21672", "name": "HockeyTrean Herr Region Norr D", "family": "HockeyTrean", "district": "Region Norr", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21673", "name": "HockeyTrean Herr Region Norr E", "family": "HockeyTrean", "district": "Region Norr", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21674", "name": "HockeyTrean Herr Region Norr F", "family": "HockeyTrean", "district": "Region Norr", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21319", "name": "HockeyTvåan Herr Region Norr A", "family": "HockeyTvåan", "district": "Region Norr", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21320", "name": "HockeyTvåan Herr Region Norr B", "family": "HockeyTvåan", "district": "Region Norr", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21321", "name": "HockeyTvåan Herr Region Norr C", "family": "HockeyTvåan", "district": "Region Norr", "region": "Region Norr", "age": null, "gender": "H", "kind": "senior"}, {"id": "21144", "name": "U16 Regional", "family": "U16 Regional", "district": "Region Syd", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21225", "name": "U18 Herr Division 1 A", "family": "U18 Div 1", "district": "Region Syd", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21226", "name": "U18 Herr Division 1 B", "family": "U18 Div 1", "district": "Region Syd", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21227", "name": "U18 Herr Division 1 C", "family": "U18 Div 1", "district": "Region Syd", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21562", "name": "U18 Herr Division 2 Syd A", "family": "U18 Div 2", "district": "Region Syd", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21563", "name": "U18 Herr Division 2 Syd B", "family": "U18 Div 2", "district": "Region Syd", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21564", "name": "U18 Herr Division 2 Syd C", "family": "U18 Div 2", "district": "Region Syd", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21565", "name": "U18 Herr Division 2 Syd D", "family": "U18 Div 2", "district": "Region Syd", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21182", "name": "U18 Herr Regional Syd", "family": "U18 Regional", "district": "Region Syd", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "22182", "name": "U18 Herr Regional Syd forts.", "family": "U18 Regional", "district": "Region Syd", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "22181", "name": "U18 Herr Regional Syd Topp 6", "family": "U18 Regional", "district": "Region Syd", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21788", "name": "U19 Regional", "family": "U19 Regional", "district": "Region Syd", "region": "Region Syd", "age": 19, "gender": "F", "kind": "ungdom"}, {"id": "21566", "name": "U20 Herr Division 1 Syd A", "family": "U20 Div 1", "district": "Region Syd", "region": "Region Syd", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21567", "name": "U20 Herr Division 1 Syd B", "family": "U20 Div 1", "district": "Region Syd", "region": "Region Syd", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21568", "name": "U20 Herr Division 1 Syd C", "family": "U20 Div 1", "district": "Region Syd", "region": "Region Syd", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21143", "name": "U20 Regional", "family": "U20 Regional", "district": "Region Syd", "region": "Region Syd", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21404", "name": "HockeyTrean Herr Syd A", "family": "HockeyTrean", "district": "Region Syd", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "21405", "name": "HockeyTrean Herr Syd B", "family": "HockeyTrean", "district": "Region Syd", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "21406", "name": "HockeyTrean Herr Syd C", "family": "HockeyTrean", "district": "Region Syd", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "21407", "name": "HockeyTrean Herr Syd D", "family": "HockeyTrean", "district": "Region Syd", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "21787", "name": "HockeyTvåan Dam", "family": "HockeyTvåan Dam", "district": "Region Syd", "region": "Region Syd", "age": null, "gender": "F", "kind": "senior"}, {"id": "21213", "name": "HockeyTvåan Herr Syd A", "family": "HockeyTvåan", "district": "Region Syd", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "21214", "name": "HockeyTvåan Herr Syd B", "family": "HockeyTvåan", "district": "Region Syd", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "21546", "name": "F16", "family": "F16", "district": "Region Väst", "region": "Region Väst", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "21235", "name": "U16 Regional", "family": "U16 Regional", "district": "Region Väst", "region": "Region Väst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21549", "name": "U18 Division 1 A Västra Herr", "family": "U18 Div 1", "district": "Region Väst", "region": "Region Väst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21550", "name": "U18 Division 1 B Västra Herr", "family": "U18 Div 1", "district": "Region Väst", "region": "Region Väst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21555", "name": "U18 Division 1 C Västra Herr", "family": "U18 Div 1", "district": "Region Väst", "region": "Region Väst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21556", "name": "U18 Division 1 D Västra Herr", "family": "U18 Div 1", "district": "Region Väst", "region": "Region Väst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21054", "name": "U18 H Regional Väst", "family": "U18 Regional", "district": "Region Väst", "region": "Region Väst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "22180", "name": "U18 Herr Regional Väst Forts. 6", "family": "U18 Regional", "district": "Region Väst", "region": "Region Väst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "22345", "name": "U18 Herr Regional Väst PlayIn", "family": "U18 Regional", "district": "Region Väst", "region": "Region Väst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "22179", "name": "U18 Herr Regional Väst Top 6", "family": "U18 Regional", "district": "Region Väst", "region": "Region Väst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21552", "name": "U20 Division 1 A Västra Herr", "family": "U20 Div 1", "district": "Region Väst", "region": "Region Väst", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21551", "name": "U20 Division 1 B Västra Herr", "family": "U20 Div 1", "district": "Region Väst", "region": "Region Väst", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21553", "name": "U20 Division 1 C Västra Herr", "family": "U20 Div 1", "district": "Region Väst", "region": "Region Väst", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21053", "name": "U20 Regional", "family": "U20 Regional", "district": "Region Väst", "region": "Region Väst", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21517", "name": "HockeyTrean Dalarna", "family": "HockeyTrean", "district": "Region Väst", "region": "Region Väst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21516", "name": "HockeyTrean Gävleborg", "family": "HockeyTrean", "district": "Region Väst", "region": "Region Väst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21471", "name": "HockeyTrean Värmland", "family": "HockeyTrean", "district": "Region Väst", "region": "Region Väst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21472", "name": "HockeyTrean Västmanland/Örebro", "family": "HockeyTrean", "district": "Region Väst", "region": "Region Väst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21581", "name": "HockeyTvåan", "family": "HockeyTvåan", "district": "Region Väst", "region": "Region Väst", "age": null, "gender": "F", "kind": "senior"}, {"id": "21088", "name": "HockeyTvåan Herr Region Väst A", "family": "HockeyTvåan", "district": "Region Väst", "region": "Region Väst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21089", "name": "HockeyTvåan Herr Region Väst B", "family": "HockeyTvåan", "district": "Region Väst", "region": "Region Väst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21090", "name": "HockeyTvåan Herr Region Väst C", "family": "HockeyTvåan", "district": "Region Väst", "region": "Region Väst", "age": null, "gender": "H", "kind": "senior"}, {"id": "22243", "name": "U18 Regional Herr Öst Fortsättning", "family": "U18 Regional", "district": "Region Öst", "region": "Region Öst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21274", "name": "U18H Allettan Östra", "family": "U18 Div 1", "district": "Region Öst", "region": "Region Öst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21267", "name": "U18H Division 1 Östra A", "family": "U18 Div 1", "district": "Region Öst", "region": "Region Öst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21742", "name": "U18H Division 1 Östra B", "family": "U18 Div 1", "district": "Region Öst", "region": "Region Öst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21741", "name": "U18H Division 1 Östra C", "family": "U18 Div 1", "district": "Region Öst", "region": "Region Öst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21271", "name": "U18H Regional Öst", "family": "U18 Regional", "district": "Region Öst", "region": "Region Öst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "22242", "name": "U18H Regional Östra Topp 6", "family": "U18 Regional", "district": "Region Öst", "region": "Region Öst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21268", "name": "U19 Regional", "family": "U19 Regional", "district": "Region Öst", "region": "Region Öst", "age": 19, "gender": "F", "kind": "ungdom"}, {"id": "21272", "name": "U20 Regional", "family": "U20 Regional", "district": "Region Öst", "region": "Region Öst", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21687", "name": "U20H Division 1 Östra A", "family": "U20 Div 1", "district": "Region Öst", "region": "Region Öst", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21688", "name": "U20H Division 1 Östra B", "family": "U20 Div 1", "district": "Region Öst", "region": "Region Öst", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "21697", "name": "DamTvåan", "family": "DamTvåan", "district": "Region Öst", "region": "Region Öst", "age": null, "gender": "F", "kind": "senior"}, {"id": "21929", "name": "HockeyFyran · Hockeyfyran Stockholm A", "family": "HockeyFyran", "district": "Region Öst", "region": "Region Öst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21930", "name": "HockeyFyran · Hockeyfyran Stockholm B", "family": "HockeyFyran", "district": "Region Öst", "region": "Region Öst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21800", "name": "HockeyFyran Uppland", "family": "HockeyFyran", "district": "Region Öst", "region": "Region Öst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21539", "name": "HockeyTrean Herr Östra A", "family": "HockeyTrean", "district": "Region Öst", "region": "Region Öst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21538", "name": "HockeyTrean Herr Östra B", "family": "HockeyTrean", "district": "Region Öst", "region": "Region Öst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21505", "name": "HockeyTvåan", "family": "HockeyTvåan", "district": "Region Öst", "region": "Region Öst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21639", "name": "U10/U11F", "family": "U10/U11F", "district": "Skåne", "region": "Region Syd", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "21636", "name": "U10F", "family": "U10F", "district": "Skåne", "region": "Region Syd", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "21637", "name": "U10P", "family": "U10P", "district": "Skåne", "region": "Region Syd", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "21638", "name": "U11P", "family": "U11P", "district": "Skåne", "region": "Region Syd", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "21640", "name": "U12F", "family": "U12F", "district": "Skåne", "region": "Region Syd", "age": 12, "gender": "F", "kind": "ungdom"}, {"id": "21642", "name": "U12P", "family": "U12P", "district": "Skåne", "region": "Region Syd", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "22367", "name": "U13P DM Grundserie 1", "family": "U13 DM", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22368", "name": "U13P DM Grundserie 2", "family": "U13 DM", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22369", "name": "U13P DM Grundserie 3", "family": "U13 DM", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21620", "name": "U13P Fortsättningsserie A", "family": "U13P", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21621", "name": "U13P Fortsättningsserie B", "family": "U13P", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21622", "name": "U13P Fortsättningsserie C", "family": "U13P", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21623", "name": "U13P Fortsättningsserie D", "family": "U13P", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21624", "name": "U13P Grundserie 1", "family": "U13P", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21625", "name": "U13P Grundserie 2", "family": "U13P", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21626", "name": "U13P Grundserie 3", "family": "U13P", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21627", "name": "U13P Grundserie 4", "family": "U13P", "district": "Skåne", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22119", "name": "U14F", "family": "U14F", "district": "Skåne", "region": "Region Syd", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "21612", "name": "U14P Fortsättningsserie A", "family": "U14P", "district": "Skåne", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21613", "name": "U14P Fortsättningsserie B", "family": "U14P", "district": "Skåne", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21614", "name": "U14P Fortsättningsserie C", "family": "U14P", "district": "Skåne", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21615", "name": "U14P Fortsättningsserie D", "family": "U14P", "district": "Skåne", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21616", "name": "U14P Grundserie 1", "family": "U14P", "district": "Skåne", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21617", "name": "U14P Grundserie 2", "family": "U14P", "district": "Skåne", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21618", "name": "U14P Grundserie 3", "family": "U14P", "district": "Skåne", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21619", "name": "U14P Grundserie 4", "family": "U14P", "district": "Skåne", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21634", "name": "U15P · Förkval inför kvalserie till U16 RS", "family": "U15P", "district": "Skåne", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22385", "name": "U15F DM", "family": "U15F DM", "district": "Skåne", "region": "Region Syd", "age": 15, "gender": "F", "kind": "ungdom"}, {"id": "21606", "name": "U15P Fortsättningsserie A", "family": "U15P", "district": "Skåne", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21607", "name": "U15P Fortsättningsserie B", "family": "U15P", "district": "Skåne", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21608", "name": "U15P Fortsättningsserie C", "family": "U15P", "district": "Skåne", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21609", "name": "U15P Grundserie 1", "family": "U15P", "district": "Skåne", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21610", "name": "U15P Grundserie 2", "family": "U15P", "district": "Skåne", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21611", "name": "U15P Grundserie 3", "family": "U15P", "district": "Skåne", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22370", "name": "U16P DM Grundserie 1", "family": "U16P DM", "district": "Skåne", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22371", "name": "U16P DM Grundserie 2", "family": "U16P DM", "district": "Skåne", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22372", "name": "U16P DM Grundserie 3", "family": "U16P DM", "district": "Skåne", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21601", "name": "U16P Forsättningsserie A", "family": "U16P", "district": "Skåne", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21602", "name": "U16P Fortsättningsserie B", "family": "U16P", "district": "Skåne", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21603", "name": "U16P Fortsättningsserie C", "family": "U16P", "district": "Skåne", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21600", "name": "U16P Grundserie 1", "family": "U16P", "district": "Skåne", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21604", "name": "U16P Grundserie 2", "family": "U16P", "district": "Skåne", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21605", "name": "U16P Grundserie 3", "family": "U16P", "district": "Skåne", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22405", "name": "U18 DM", "family": "U18 DM", "district": "Skåne", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21999", "name": "TKH P", "family": "TKH P", "district": "Skåne", "region": "Region Syd", "age": null, "gender": "P", "kind": "senior"}, {"id": "22192", "name": "U9P", "family": "U9P", "district": "Småland", "region": "Region Syd", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "22191", "name": "U10F", "family": "U10F", "district": "Småland", "region": "Region Syd", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "22137", "name": "U10P", "family": "U10P", "district": "Småland", "region": "Region Syd", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "22047", "name": "U11P", "family": "U11P", "district": "Småland", "region": "Region Syd", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "22120", "name": "U12 F", "family": "U12 F", "district": "Småland", "region": "Region Syd", "age": 12, "gender": "F", "kind": "ungdom"}, {"id": "21820", "name": "U12P", "family": "U12P", "district": "Småland", "region": "Region Syd", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "20989", "name": "U13 DM", "family": "U13 DM", "district": "Småland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22300", "name": "U13 DM Kvartsfinalpool A", "family": "U13 DM", "district": "Småland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22301", "name": "U13 DM Kvartsfinalpool B", "family": "U13 DM", "district": "Småland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22302", "name": "U13 DM Kvartsfinalpool C", "family": "U13 DM", "district": "Småland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22303", "name": "U13 DM Kvartsfinalpool D", "family": "U13 DM", "district": "Småland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21732", "name": "U13P Division 1A", "family": "U13P", "district": "Småland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21733", "name": "U13P Division 1B", "family": "U13P", "district": "Småland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21734", "name": "U13P Division 1C", "family": "U13P", "district": "Småland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21735", "name": "U13P Division 2", "family": "U13P", "district": "Småland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "20994", "name": "U14 DM", "family": "U14 DM", "district": "Småland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22317", "name": "U14 DM Kvartsfinalpool A", "family": "U14 DM", "district": "Småland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22318", "name": "U14 DM Kvartsfinalpool B", "family": "U14 DM", "district": "Småland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22319", "name": "U14 DM Kvartsfinalpool C", "family": "U14 DM", "district": "Småland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22010", "name": "U14F", "family": "U14F", "district": "Småland", "region": "Region Syd", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "21727", "name": "U14P Division 1A", "family": "U14P", "district": "Småland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21728", "name": "U14P Division 1B", "family": "U14P", "district": "Småland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21729", "name": "U14P Division 1C", "family": "U14P", "district": "Småland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21730", "name": "U14P Division 1D", "family": "U14P", "district": "Småland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21731", "name": "U14P Division 2", "family": "U14P", "district": "Småland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21736", "name": "U15P · Förkval inför kvalserie till U16 Regional Syd 2027/2028", "family": "U15P", "district": "Småland", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "20995", "name": "U15 DM", "family": "U15 DM", "district": "Småland", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22307", "name": "U15 DM Kvartsfinalpool A", "family": "U15 DM", "district": "Småland", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22308", "name": "U15 DM Kvartsfinalpool B", "family": "U15 DM", "district": "Småland", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21715", "name": "U15P Division 1A", "family": "U15P", "district": "Småland", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21716", "name": "U15P Division 1B", "family": "U15P", "district": "Småland", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21717", "name": "U15P Division 1C", "family": "U15P", "district": "Småland", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21718", "name": "U15P Division 1D", "family": "U15P", "district": "Småland", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "20996", "name": "U16 DM", "family": "U16 DM", "district": "Småland", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22323", "name": "U16 DM Kvartsfinalpool A", "family": "U16 DM", "district": "Småland", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22324", "name": "U16 DM Kvartsfinalpool B", "family": "U16 DM", "district": "Småland", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22325", "name": "U16 DM Kvartsfinalpool C", "family": "U16 DM", "district": "Småland", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22009", "name": "U16F · U16 Flickor Div. 1 Småland", "family": "U16F", "district": "Småland", "region": "Region Syd", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "22258", "name": "U16F · U16 Flickor Småland", "family": "U16F", "district": "Småland", "region": "Region Syd", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "21709", "name": "U16P Division 1 A", "family": "U16P", "district": "Småland", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21710", "name": "U16P Division 1 B", "family": "U16P", "district": "Småland", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21711", "name": "U16P Division 1 C", "family": "U16P", "district": "Småland", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22070", "name": "U9P", "family": "U9P", "district": "Stockholm", "region": "Region Öst", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "21956", "name": "F10 Poolspel", "family": "F10 Poolspel", "district": "Stockholm", "region": "Region Öst", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "20601", "name": "SWHT U10F grupp A", "family": "U10F", "district": "Stockholm", "region": "Region Öst", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "20602", "name": "SWHT U10F grupp B", "family": "U10F", "district": "Stockholm", "region": "Region Öst", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "22028", "name": "U10P", "family": "U10P", "district": "Stockholm", "region": "Region Öst", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "21958", "name": "U11P", "family": "U11P", "district": "Stockholm", "region": "Region Öst", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "21968", "name": "U12F", "family": "U12F", "district": "Stockholm", "region": "Region Öst", "age": 12, "gender": "F", "kind": "ungdom"}, {"id": "21895", "name": "U12P", "family": "U12P", "district": "Stockholm", "region": "Region Öst", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "21719", "name": "U13P Blå grupp 1", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21720", "name": "U13P Blå grupp 2", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21721", "name": "U13P Blå grupp 3", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21722", "name": "U13P Blå grupp 4", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22233", "name": "U13P DM Blå Grupp 1", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22234", "name": "U13P DM Blå Grupp 2", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22235", "name": "U13P DM Blå Grupp 3", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22236", "name": "U13P DM Blå Grupp 4", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22237", "name": "U13P DM Blå Grupp 5", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22238", "name": "U13P DM Röd Grupp 1", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22239", "name": "U13P DM Röd Grupp 2", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "22240", "name": "U13P DM Röd Grupp 3", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21723", "name": "U13P Röd grupp 1", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21724", "name": "U13P Röd grupp 2", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21725", "name": "U13P Röd grupp 3", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21726", "name": "U13P Röd grupp 4", "family": "U13P", "district": "Stockholm", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21497", "name": "U14F Blå grupp", "family": "U14F", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "22211", "name": "U14F DM Grupp 1", "family": "U14F", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "22212", "name": "U14F DM Grupp 2", "family": "U14F", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "22213", "name": "U14F DM Slutspel A", "family": "U14F", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "22214", "name": "U14F DM Slutspel B", "family": "U14F", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "22329", "name": "U14F Kvalmatcher till Grupp A", "family": "U14F", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "21498", "name": "U14F Röd grupp 1", "family": "U14F", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "21499", "name": "U14F Röd Grupp 2", "family": "U14F", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "22224", "name": "U14P", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21479", "name": "U14P Blå grupp 1", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21480", "name": "U14P Blå grupp 2", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21481", "name": "U14P Blå grupp 3", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22225", "name": "U14P DM Blå Grupp 1", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22226", "name": "U14P DM Blå Grupp 2", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22227", "name": "U14P DM Blå Grupp 3", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22228", "name": "U14P DM Röd Grupp 1", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22229", "name": "U14P DM Röd Grupp 2", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22230", "name": "U14P DM Röd Grupp 3", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22231", "name": "U14P DM Röd Grupp 4", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22232", "name": "U14P DM Röd Grupp 5", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22298", "name": "U14P Kval till Grupp A", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21482", "name": "U14P Röd grupp 1", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21483", "name": "U14P Röd grupp 2", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21484", "name": "U14P Röd grupp 3", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21485", "name": "U14P Röd grupp 4", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21486", "name": "U14P Röd grupp 5", "family": "U14P", "district": "Stockholm", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "22215", "name": "U15P", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21455", "name": "U15P Blå Grupp 1", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21456", "name": "U15P Blå Grupp 2", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21457", "name": "U15P Blå Grupp 3", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22216", "name": "U15P DM Blå Grupp 1", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22217", "name": "U15P DM Blå Grupp 2", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22218", "name": "U15P DM Blå Grupp 3", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22219", "name": "U15P DM Blå Grupp 4", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22220", "name": "U15P DM Röd Grupp 1", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22221", "name": "U15P DM Röd Grupp 2", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22222", "name": "U15P DM Röd Grupp 3", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22223", "name": "U15P DM Röd Grupp 4", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21462", "name": "U15P Kvalserie till Grupp A", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21458", "name": "U15P Röd Grupp 1", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21459", "name": "U15P Röd Grupp 2", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21460", "name": "U15P Röd Grupp 3", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21461", "name": "U15P Röd Grupp 4", "family": "U15P", "district": "Stockholm", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22207", "name": "U16F DM Grupp 1", "family": "U16F", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "22208", "name": "U16F DM Grupp 2", "family": "U16F", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "22209", "name": "U16F DM placeringsmatcher", "family": "U16F", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "22210", "name": "U16F DM slutspel Topp 4", "family": "U16F", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "21494", "name": "U16F grupp blå", "family": "U16F", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "21495", "name": "U16F grupp röd", "family": "U16F", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "21496", "name": "U16F kval till Grupp A", "family": "U16F", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "21450", "name": "U16P Blå Grupp 1", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21451", "name": "U16P Blå grupp 2", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22199", "name": "U16P DM Blå Grupp 1", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22200", "name": "U16P DM Blå Grupp 2", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22201", "name": "U16P DM Blå Grupp 3", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22202", "name": "U16P DM Blå Grupp 4", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22204", "name": "U16P DM Finalspel Topp 4", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22206", "name": "U16P DM Placeringsmatcher", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22203", "name": "U16P DM Röd Grupp", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21454", "name": "U16P Kvalserie till Grupp A", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21452", "name": "U16P Röd grupp 1", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21453", "name": "U16P Röd grupp 2", "family": "U16P", "district": "Stockholm", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22117", "name": "Division 5", "family": "Division 5", "district": "Stockholm", "region": "Region Öst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21963", "name": "U9", "family": "U9", "district": "Södermanland", "region": "Region Öst", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "21945", "name": "F10", "family": "F10", "district": "Södermanland", "region": "Region Öst", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "21973", "name": "U10", "family": "U10", "district": "Södermanland", "region": "Region Öst", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "21998", "name": "U11", "family": "U11", "district": "Södermanland", "region": "Region Öst", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "21952", "name": "F12", "family": "F12", "district": "Södermanland", "region": "Region Öst", "age": 12, "gender": "F", "kind": "ungdom"}, {"id": "21939", "name": "U12", "family": "U12", "district": "Södermanland", "region": "Region Öst", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "21828", "name": "U13", "family": "U13", "district": "Södermanland", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21842", "name": "U14", "family": "U14", "district": "Södermanland", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21869", "name": "U15", "family": "U15", "district": "Södermanland", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22017", "name": "U16 P", "family": "U16 P", "district": "Södermanland", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21967", "name": "U9", "family": "U9", "district": "Uppland", "region": "Region Öst", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "21985", "name": "U10", "family": "U10", "district": "Uppland", "region": "Region Öst", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "21944", "name": "U10 F", "family": "U10 F", "district": "Uppland", "region": "Region Öst", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "22008", "name": "U11", "family": "U11", "district": "Uppland", "region": "Region Öst", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "21941", "name": "U12", "family": "U12", "district": "Uppland", "region": "Region Öst", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "21953", "name": "U12 F", "family": "U12 F", "district": "Uppland", "region": "Region Öst", "age": 12, "gender": "F", "kind": "ungdom"}, {"id": "21823", "name": "U13", "family": "U13", "district": "Uppland", "region": "Region Öst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21833", "name": "U14", "family": "U14", "district": "Uppland", "region": "Region Öst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21830", "name": "U14 F", "family": "U14 F", "district": "Uppland", "region": "Region Öst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "21868", "name": "U15", "family": "U15", "district": "Uppland", "region": "Region Öst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "22022", "name": "U16", "family": "U16", "district": "Uppland", "region": "Region Öst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21904", "name": "U9", "family": "U9", "district": "Värmland", "region": "Region Väst", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "21902", "name": "F10", "family": "F10", "district": "Värmland", "region": "Region Väst", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "21864", "name": "U10", "family": "U10", "district": "Värmland", "region": "Region Väst", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "21860", "name": "U11", "family": "U11", "district": "Värmland", "region": "Region Väst", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "21903", "name": "F12", "family": "F12", "district": "Värmland", "region": "Region Väst", "age": 12, "gender": "F", "kind": "ungdom"}, {"id": "21809", "name": "U12", "family": "U12", "district": "Värmland", "region": "Region Väst", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "21794", "name": "U13", "family": "U13", "district": "Värmland", "region": "Region Väst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21806", "name": "F14", "family": "F14", "district": "Värmland", "region": "Region Väst", "age": 14, "gender": "F", "kind": "ungdom"}, {"id": "21768", "name": "U14", "family": "U14", "district": "Värmland", "region": "Region Väst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21750", "name": "U15", "family": "U15", "district": "Värmland", "region": "Region Väst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21583", "name": "U16", "family": "U16", "district": "Värmland", "region": "Region Väst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22004", "name": "U16 DM", "family": "U16 DM", "district": "Värmland", "region": "Region Väst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21063", "name": "U16F", "family": "U16F", "district": "Värmland", "region": "Region Väst", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "22023", "name": "U18 DM", "family": "U18 DM", "district": "Värmland", "region": "Region Väst", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "22002", "name": "Lilla VM", "family": "Lilla VM", "district": "Värmland", "region": "Region Väst", "age": null, "gender": "H", "kind": "senior"}, {"id": "21908", "name": "U9P", "family": "U9P", "district": "Västergötland", "region": "Region Syd", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "22019", "name": "Flickor U10-U9", "family": "Flickor U10-U9", "district": "Västergötland", "region": "Region Syd", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "21907", "name": "U10P", "family": "U10P", "district": "Västergötland", "region": "Region Syd", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "21906", "name": "U11P", "family": "U11P", "district": "Västergötland", "region": "Region Syd", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "22018", "name": "Flickor U12-U11", "family": "Flickor U12-U11", "district": "Västergötland", "region": "Region Syd", "age": 12, "gender": "F", "kind": "ungdom"}, {"id": "21901", "name": "U12P", "family": "U12P", "district": "Västergötland", "region": "Region Syd", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "21554", "name": "U13P Västergötland", "family": "U13P", "district": "Västergötland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21582", "name": "U14P", "family": "U14P", "district": "Västergötland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21297", "name": "U15P Västergötland", "family": "U15P", "district": "Västergötland", "region": "Region Syd", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21298", "name": "U16-U13F · U16 - U13F Västergötland", "family": "U16-U13F", "district": "Västergötland", "region": "Region Syd", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "21299", "name": "U16-U13F DM Västergötland", "family": "U16-U13F", "district": "Västergötland", "region": "Region Syd", "age": 16, "gender": "F", "kind": "ungdom"}, {"id": "21296", "name": "U16P", "family": "U16P", "district": "Västergötland", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21805", "name": "U13", "family": "U13", "district": "Örebro", "region": "Region Väst", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21773", "name": "U14", "family": "U14", "district": "Örebro", "region": "Region Väst", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21755", "name": "U15", "family": "U15", "district": "Örebro", "region": "Region Väst", "age": 15, "gender": "P", "kind": "ungdom"}, {"id": "21690", "name": "U16", "family": "U16", "district": "Örebro", "region": "Region Väst", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "22176", "name": "U9P", "family": "U9P", "district": "Östergötland", "region": "Region Syd", "age": 9, "gender": "P", "kind": "ungdom"}, {"id": "22128", "name": "U10F", "family": "U10F", "district": "Östergötland", "region": "Region Syd", "age": 10, "gender": "F", "kind": "ungdom"}, {"id": "22130", "name": "U10P", "family": "U10P", "district": "Östergötland", "region": "Region Syd", "age": 10, "gender": "P", "kind": "ungdom"}, {"id": "22118", "name": "U11P", "family": "U11P", "district": "Östergötland", "region": "Region Syd", "age": 11, "gender": "P", "kind": "ungdom"}, {"id": "22051", "name": "U12P", "family": "U12P", "district": "Östergötland", "region": "Region Syd", "age": 12, "gender": "P", "kind": "ungdom"}, {"id": "21938", "name": "U13P", "family": "U13P", "district": "Östergötland", "region": "Region Syd", "age": 13, "gender": "P", "kind": "ungdom"}, {"id": "21937", "name": "U14P", "family": "U14P", "district": "Östergötland", "region": "Region Syd", "age": 14, "gender": "P", "kind": "ungdom"}, {"id": "21915", "name": "U16P", "family": "U16P", "district": "Östergötland", "region": "Region Syd", "age": 16, "gender": "P", "kind": "ungdom"}, {"id": "21223", "name": "LHC Academy Cup J18 2026", "family": "LHC Academy Cup", "district": "Östergötland", "region": "Region Syd", "age": 18, "gender": "H", "kind": "ungdom"}, {"id": "21224", "name": "LHC Academy Cup J20 2026", "family": "LHC Academy Cup", "district": "Östergötland", "region": "Region Syd", "age": 20, "gender": "H", "kind": "ungdom"}, {"id": "22103", "name": "Folke Filbyter Cup Grupp 1", "family": "Folke Filbyter Cup", "district": "Östergötland", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "22104", "name": "Folke Filbyter Cup Grupp 2", "family": "Folke Filbyter Cup", "district": "Östergötland", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "22105", "name": "Folke Filbyter Cup Slutspel", "family": "Folke Filbyter Cup", "district": "Östergötland", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "20515", "name": "Stångebro Cup Grupp 1", "family": "Stångebro Cup", "district": "Östergötland", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "20516", "name": "Stångebro Cup Grupp 2", "family": "Stångebro Cup", "district": "Östergötland", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}, {"id": "20517", "name": "Stångebro Cup Slutspel", "family": "Stångebro Cup", "district": "Östergötland", "region": "Region Syd", "age": null, "gender": "H", "kind": "senior"}]}</script>
+<script>
+/* =========================================================
+   KONFIG
+   API_BASE = '' → demodata. Sätt till din Worker-URL, t.ex.
+   'https://hockey-api.geapanenbanan.com', för riktig data.
+   ========================================================= */
+/* På den riktiga sajten (t.ex. islage.geapanenbanan.com) hämtas data från samma Worker.
+   I förhandsvisningar (claude.ai, lokal fil) körs demodata. */
+const ON_SITE = location.protocol === 'https:' && !/claude|anthropic|usercontent|localhost/.test(location.hostname);
+const API_BASE  = ON_SITE ? location.origin : '';          // Workern: /api/…
+const DATA_BASE = ON_SITE ? location.origin + '/data' : ''; // statiska filer från GitHub Actions
+const LIVE_POLL_MS = 15000;
+
+/* ---------- Lag: förkortning + färg (egna badges, inga logotyper) ---------- */
+const TEAMS = {
+  'Brynäs IF':['BIF','#c9a227'],'Djurgårdens IF':['DIF','#1f4e9c'],'Frölunda HC':['FHC','#0f6b3a'],
+  'Färjestad BK':['FBK','#d9a400'],'HV 71':['HV','#1e4fa3'],'IF Björklöven':['IFB','#1a7a3a'],
+  'IF Malmö Redhawks':['MIF','#b3121f'],'Linköping HC':['LHC','#1d6fb8'],'Luleå HF':['LHF','#c41e2a'],
+  'Rögle BK':['RBK','#127a3f'],'Skellefteå AIK':['SKE','#222'],'Timrå IK':['TIK','#c8102e'],
+  'Växjö Lakers HC':['VLH','#e4572e'],'Örebro HK':['ÖHK','#1b3f8b'],
+  'Leksands IF':['LIF','#2554a5'],'AIK':['AIK','#111'],'MoDo Hockey':['MOD','#b5121b'],
+  'BIK Karlskoga':['BIK','#c8a000'],'Södertälje SK':['SSK','#14348a'],'Västerås IK':['VIK','#e0a000'],
+  'Kalmar HC':['KHC','#d22630'],'IK Oskarshamn':['IKO','#e87722'],'Mora IK':['MIK','#d1242a'],
+  'Almtuna IS':['AIS','#1e5aa8'],'Vimmerby HC':['VHC','#0b4fa0'],'Östersunds IK':['ÖIK','#00843d'],
+  'Nybro Vikings IF':['NYB','#c8102e'],'Visby/Roma HK':['VRH','#1d4f91']
+};
+/* "Rögle BK Vit" / "Limhamn HK 2" → grundlaget, så ungdomslag får klubbens färg och förkortning */
+const baseTeam = t => { let b=t, prev; do{ prev=b; b=b.replace(/\s+(\d|Vit|Blå|Röd|Grön|Svart|Gul|Ungdom|U\d+\w*)$/i,''); }while(b!==prev); return b; };
+const autoAbbr = t => { const w=baseTeam(t).split(' ').filter(x=>!/^(IF|IK|HC|BK|SK|HK|IS|HF|IBK)$/.test(x)); return (w.length>1?w.map(x=>x[0]).join(''):(w[0]||t).slice(0,3)).slice(0,3).toUpperCase(); };
+const abbr = t => (TEAMS[t]||TEAMS[baseTeam(t)]||[autoAbbr(t)])[0];
+const col  = t => (TEAMS[t]||TEAMS[baseTeam(t)]||[0,'#3a4a68'])[1];
+/* mörka lagfärger syns dåligt mot bakgrunden i staplar */
+const barCol = t => { const c=col(t).replace('#',''); const n=c.length===3?c.split('').map(x=>x+x).join(''):c; const [r,g,b]=[0,2,4].map(i=>parseInt(n.slice(i,i+2),16)); return (r*299+g*587+b*114)/1000<60?'#9aa7bf':col(t); };
+const badge = (t,cls='') => `<span class="badge ${cls}" style="background:${col(t)}">${abbr(t)}</span>`;
+
+const MIN_PLAYER_AGE = 13;   // dölj poängligor (barnens namn) i yngre åldrar än så här
+/* Seriekatalog: data/catalog.json från GitHub Actions, annars demokatalog */
+const NATIONAL = [
+  {id:'20961', name:'SHL', age:null, gender:'H', kind:'senior', district:'Svenska Ishockeyförbundet'},
+  {id:'20962', name:'HockeyAllsvenskan', age:null, gender:'H', kind:'senior', district:'Svenska Ishockeyförbundet'},
+];
+const DEMO_CLUBS = {
+  'Skåne':['Rögle BK','IF Malmö Redhawks','Limhamn HK','Helsingborg HC Ungdom','Lund Giants HC','Kristianstads IK','Trelleborgs IF','Tyringe SoSS'],
+  'Stockholm':['Djurgårdens IF','AIK','Hammarby IF','Järfälla HC','Huddinge IK','Nacka HK','Värmdö HC','Haninge Anchors HC'],
+  'Göteborg':['Frölunda HC','Hisingen HC','Mölndal Hockey','Kungälvs IK','Härryda HC','Lerums BK'],
+  'Region Norr':['Skellefteå AIK','IF Björklöven','Umeå Hockey','Clemensnäs HC','Kågeträsk IK','Lycksele SK'],
+  'Småland':['HV 71','Växjö Lakers HC','Tingsryds AIF','Nybro Vikings IF','Kalmar HC','Vimmerby HC'],
+  'Uppland':['Almtuna IS','Uppsala HC','Enköpings SK HK','Östhammars HC','Tierps HK','Skutskärs SK'],
+};
+function demoCatalog(){
+  const out=[...NATIONAL]; let id=21000;
+  Object.keys(DEMO_CLUBS).forEach(d=>{
+    [[16,'P','Division 1'],[16,'P','Division 2'],[15,'P','Division 1'],[14,'P','Division 1'],[14,'P','Division 2A'],[13,'P','Serie'],[16,'F','Serie'],[14,'F','Serie'],[12,'P','Serie']]
+      .forEach(([age,gender,div])=>out.push({id:String(id++),name:`U${age}${gender} ${div}`,age,gender,kind:'ungdom',district:d}));
+  });
+  return out;
+}
+let CATALOG = null;
+/* Katalog: data/catalog.json (uppdateras varje vecka av GitHub Actions), annars den inbäddade kopian */
+async function catalog(){
+  if(CATALOG) return CATALOG;
+  try{ if(DATA_BASE) CATALOG = (await (await fetch(`${DATA_BASE}/catalog.json`)).json()).series; }catch(e){}
+  if(!CATALOG){ try{ CATALOG = JSON.parse(document.getElementById('bundled-catalog').textContent).series; }catch(e){ CATALOG = NATIONAL; } }
+  return CATALOG;
+}
+const seriesById = async id => (await catalog()).find(x=>x.id===id) || {id, name:'Serie '+id, district:'', age:null, gender:'H'};
+const shortDistrict = d => (d||'').replace(/s? Ishockeyförbund(et)?/,'').replace(/^Svenska$/,'Nationell');
+const genderLabel = {P:'Pojkar',F:'Flickor',H:'Herr'};
+
+/* =========================================================
+   DEMODATA
+   SHL-resultaten 12 nov är riktiga (från stats.swehockey.se).
+   Händelser, poängliga, resten av tabellen och livematchen är påhittade.
+   ========================================================= */
+const DEMO_DATE = '2026-11-12';
+const LID = {'SHL':'20961','HockeyAllsvenskan':'20962'};
+const g = (id,league,date,time,home,away,hs,as,periods,status,venue,spect,extra={})=>({id,league,leagueId:LID[league],date,time,home,away,hs,as,periods,status,venue,spectators:spect,...extra});
+/* Demolänk: pekar på svenskhockey.tv:s startsida. Riktiga matchlänkar kommer från Workern. */
+const STH_DEMO = 'https://www.svenskhockey.tv/';
+const yg = (id,leagueId,league,time,home,away,hs,as,periods,status,clock,venue,stream)=>({id,leagueId,league,date:DEMO_DATE,time,home,away,hs,as,periods,status,clock,venue,stream:stream?{url:STH_DEMO,live:status==='live'}:null});
+const DEMO = {
+  games:[
+    g('live1','HockeyAllsvenskan',DEMO_DATE,'19:00','Leksands IF','MoDo Hockey',1,1,[[1,0],[0,1]],'live','Tegera Arena',null,{stream:{url:STH_DEMO,live:true}}),
+    yg('y1','21600','U16P Grundserie 1','18:30','Rögle BK','Limhamn HK',2,1,[[1,1],[1,0]],'live','P2 · 31:40','Catena Arena',true),
+    yg('y2','21600','U16P Grundserie 1','18:00','Helsingborg HC Ungdom','Tyringe SoSS',3,5,[[1,2],[1,1],[1,2]],'final',null,'Olympiarinken',true),
+    yg('y3','21600','U16P Grundserie 1','19:30','IF Malmö Redhawks','Kristianstads IK',null,null,[],'upcoming',null,'Malmö Isstadion',true),
+    yg('y4','21452','U16P Röd grupp 1','18:45','Djurgårdens IF','AIK',0,0,[[0,0]],'live','P1 · 12:05','Hovet',true),
+    yg('y5','21452','U16P Röd grupp 1','19:00','Hammarby IF','Huddinge IK',null,null,[],'upcoming',null,'Zinkensdamm',false),
+    yg('y6','21839','U14 P Blå','17:30','Frölunda HC','Hisingen HC',6,2,[[2,1],[3,0],[1,1]],'final',null,'Frölundaborg',true),
+    yg('y7','22022','U16','19:15','Almtuna IS','Uppsala HC',1,3,[[0,1],[1,1],[0,1]],'live','P3 · 51:20','Gränby',false),
+  ],
+  standings:{
+    shl:[
+      ['Färjestad BK',15,13,0,2,0,61,18,42],['Frölunda HC',17,10,0,2,5,59,40,34],
+      ['Linköping HC',17,9,2,1,5,58,44,32],['Luleå HF',17,9,1,2,5,51,41,31],
+      ['Skellefteå AIK',17,8,2,1,6,55,52,29],['Växjö Lakers HC',17,8,1,2,6,47,40,28],
+      ['Djurgårdens IF',17,8,1,1,7,46,45,27],['Örebro HK',17,7,2,1,7,44,47,26],
+      ['Brynäs IF',17,7,1,2,7,52,51,25],['Rögle BK',17,6,2,2,7,47,53,24],
+      ['IF Malmö Redhawks',17,6,1,1,9,40,50,21],['HV 71',17,5,2,1,9,42,54,20],
+      ['Timrå IK',17,4,2,2,9,36,55,18],['IF Björklöven',17,3,1,2,11,33,60,13]
+    ],
+    ha:[
+      ['Leksands IF',18,12,1,1,4,62,38,39],['MoDo Hockey',18,11,1,2,4,58,40,37],['BIK Karlskoga',18,10,2,1,5,57,44,35],
+      ['AIK',18,10,1,1,6,51,43,33],['Södertälje SK',18,9,1,2,6,49,45,31],['Kalmar HC',18,8,2,1,7,50,47,29],
+      ['Västerås IK',18,8,1,2,7,46,46,28],['IK Oskarshamn',18,7,2,1,8,44,48,26],['Mora IK',18,6,2,2,8,45,52,24],
+      ['Almtuna IS',18,6,1,2,9,41,53,22],['Östersunds IK',18,5,2,1,10,39,55,20],['Vimmerby HC',18,5,1,2,10,40,57,19],
+      ['Nybro Vikings IF',18,4,2,1,11,37,58,17],['Visby/Roma HK',18,4,1,1,12,35,60,15]
+    ]
+  },
+  scorers:{
+    shl:[['A. Lindqvist','Färjestad BK',15,11,13],['J. Ekman','Linköping HC',17,9,14],['M. Holm','Frölunda HC',17,8,14],
+         ['O. Berg','Brynäs IF',17,10,11],['E. Nyström','Luleå HF',17,7,13],['K. Sjöberg','Skellefteå AIK',17,9,10],
+         ['L. Dahl','Växjö Lakers HC',17,6,12],['P. Wikström','Djurgårdens IF',17,8,9]],
+    ha:[['V. Strand','Leksands IF',18,12,12],['T. Forsberg','MoDo Hockey',18,9,14],['H. Lund','BIK Karlskoga',18,10,11]]
+  }
+};
+/* Riktig ögonblicksbild från stats.swehockey.se (SHL/HA 12–14 nov, något förkortade händelselistor) */
+const SNAP = (()=>{ try{ return JSON.parse(document.getElementById('snapshot').textContent); }catch(e){ return null; } })();
+if(SNAP){
+  const LN={'20961':'SHL','20962':'HockeyAllsvenskan'};
+  SNAP.games.forEach(([id,lid,time,home,away,hs,as,venue])=>{ const d=SNAP.detail[id]||{};
+    DEMO.games.unshift({id,leagueId:lid,league:LN[lid],date:DEMO_DATE,time,home,away,hs,as,periods:d.p||[],status:'final',venue,spectators:d.sp||null,
+      detail:d.ev?{events:d.ev.map(([period,time,type,team,title,text,score])=>({period,time,type,team,title,text,score})),shots:d.sh||[],pim:d.pim||[0,0],goalies:(d.gk||[]).map(([team,name,sv,sa])=>({team,name,sv,sa}))}:null}); });
+  SNAP.up.forEach(([lid,time,home,away,venue],i)=>DEMO.games.push({id:'up'+i,leagueId:lid,league:LN[lid],date:'2026-11-14',time,home,away,hs:null,as:null,periods:[],status:'upcoming',venue}));
+  ['20961','20962'].forEach(lid=>{ const k=lid==='20961'?'shl':'ha';
+    DEMO.standings[k]=SNAP.st[lid].map(([t,gp,w,ti,l,gf,ga,tp])=>[t,gp,w,0,0,l,gf,ga,tp,ti]);
+    DEMO.scorers[k]=SNAP.sc[lid]; });
+}
+/* påhittade händelser till matchdetaljer */
+function demoDetail(game){
+  const ev=[]; let h=0,a=0; const names=['Andersson','Berg','Carlsson','Dahl','Ek','Forsberg','Holm','Lund','Nilsson','Strand','Wikström'];
+  const nm=()=>names[Math.floor(Math.random()*names.length)][0]+'. '+names[Math.floor(Math.random()*names.length)];
+  game.periods.forEach((p,pi)=>{
+    const goals=[...Array(p[0]).fill(game.home),...Array(p[1]).fill(game.away)].map(t=>({t,s:Math.floor(Math.random()*1190)+5}));
+    const pens=[...Array(1+Math.floor(Math.random()*2))].map(()=>({t:Math.random()<.5?game.home:game.away,s:Math.floor(Math.random()*1190)+5,pen:true}));
+    [...goals,...pens].sort((x,y)=>x.s-y.s).forEach(e=>{
+      const clock=fmtClock(pi*1200+e.s);
+      if(e.pen) ev.push({period:pi+1,time:clock,type:'pen',team:e.t,title:'Utvisning 2 min',text:nm()+' · '+['Hakning','Slashing','Interference','Crosschecking'][Math.floor(Math.random()*4)]});
+      else { e.t===game.home?h++:a++; ev.push({period:pi+1,time:clock,type:'goal',team:e.t,title:'Mål – '+nm(),text:'Assist: '+nm()+', '+nm()+(Math.random()<.3?' · PP1':''),score:h+'–'+a}); }
+    });
+  });
+  const sh=game.periods.map(p=>[p[0]*3+5+Math.floor(Math.random()*6), p[1]*3+5+Math.floor(Math.random()*6)]);
+  return {events:ev, shots:sh, pim:[ev.filter(e=>e.type==='pen'&&e.team===game.home).length*2, ev.filter(e=>e.type==='pen'&&e.team===game.away).length*2],
+    goalies:[{team:game.home,name:'M. Ek',sv:(sh.reduce((s,x)=>s+x[1],0)-game.as),sa:sh.reduce((s,x)=>s+x[1],0)},{team:game.away,name:'J. Holm',sv:(sh.reduce((s,x)=>s+x[0],0)-game.hs),sa:sh.reduce((s,x)=>s+x[0],0)}]};
+}
+const fmtClock = s => String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+
+/* Simulerad livematch: klockan går 20x fortare och händelser dyker upp */
+const SIM = {sec:2*1200+312, detail:null};
+function simTick(){
+  const gm = DEMO.games.find(x=>x.id==='live1'); if(gm.status!=='live') return;
+  if(!SIM.detail){ SIM.detail = demoDetail(gm); }
+  SIM.sec += 20;
+  const per = Math.floor(SIM.sec/1200)+1;
+  while(gm.periods.length<per) gm.periods.push([0,0]);
+  if(SIM.sec>=3600){ gm.status='final'; gm.clock=null; render(); return; }
+  gm.clock = `P${per} · ${fmtClock(SIM.sec)}`;
+  if(Math.random()<.035){
+    const home=Math.random()<.5, team=home?gm.home:gm.away;
+    home?gm.hs++:gm.as++; gm.periods[per-1][home?0:1]++;
+    SIM.detail.events.push({period:per,time:fmtClock(SIM.sec),type:'goal',team,title:'Mål – '+['E. Strand','O. Lund','K. Berg'][Math.floor(Math.random()*3)],text:'Assist: M. Dahl',score:gm.hs+'–'+gm.as,fresh:true});
+    toast(`MÅL! ${abbr(team)} · ${gm.hs}–${gm.as}`);
+  } else if(Math.random()<.03){
+    SIM.detail.events.push({period:per,time:fmtClock(SIM.sec),type:'pen',team:Math.random()<.5?gm.home:gm.away,title:'Utvisning 2 min',text:'Hakning',fresh:true});
+  }
+  if(SIM.detail.shots.length<per) SIM.detail.shots.push([0,0]);
+  if(Math.random()<.25) SIM.detail.shots[per-1][Math.random()<.5?0:1]++;
+  if(route.view==='today'||route.view==='favs'||(route.view==='game'&&route.id==='live1')||(route.view==='league'&&route.id==='20962'&&leagueTab!=='table')) render(true);
+}
+
+/* =========================================================
+   DATAKÄLLA – samma form från demo och Worker
+   ========================================================= */
+const api = {
+  async get(url){ const r = await fetch(url); if(!r.ok) throw new Error(r.status); return r.json(); },
+  /* Statisk fil först (förhämtade favoritserier), Worker som reserv (alla andra serier) */
+  async series(lg, file, workerPath){
+    if(DATA_BASE){ try{ return await this.get(`${DATA_BASE}/${lg.id}/${file}.json`); }catch(e){} }
+    if(API_BASE) return this.get(`${API_BASE}/api/league/${lg.id}/${workerPath||file}`);
+    return null;
+  },
+  async games(date){ return API_BASE ? this.get(`${API_BASE}/api/games?date=${date}`) : DEMO.games.filter(x=>x.date===date); },
+  async leagueGames(lg){ return (await this.series(lg,'games')) ?? DEMO.games.filter(x=>x.league===lg.name); },
+  async standings(lg){
+    const r = await this.series(lg,'standings'); if(r) return r;
+    const key = {'20961':'shl','20962':'ha'}[lg.id];
+    if(key) return DEMO.standings[key].map(r=>({team:r[0],gp:r[1],w:r[2],otw:r[3],otl:r[4],l:r[5],gf:r[6],ga:r[7],tp:r[8],t:r[9]||0}));
+    return demoYouthTable(lg);
+  },
+  async scorers(lg){
+    const r = await this.series(lg,'scorers'); if(r) return r;
+    const key = {'20961':'shl','20962':'ha'}[lg.id];
+    return (DEMO.scorers[key]||[]).map(r=>({name:r[0],team:r[1],gp:r[2],g:r[3],a:r[4],tp:r[3]+r[4]}));
+  },
+  /* matcher i användarens favoritserier – används av Mina lag */
+  async allGames(){
+    if(!DATA_BASE && !API_BASE) return DEMO.games;
+    const cat = await catalog();
+    const lgs = favSeries.length ? cat.filter(x=>favSeries.includes(x.id)) : NATIONAL;
+    return (await Promise.all(lgs.map(lg=>this.leagueGames(lg).catch(()=>[])))).flat();
+  },
+  async game(id){
+    if(API_BASE) return this.get(`${API_BASE}/api/game/${id}`);
+    const gm = DEMO.games.find(x=>x.id===id);
+    if(id==='live1'){ if(!SIM.detail) SIM.detail=demoDetail(gm); return {...gm, ...SIM.detail}; }
+    if(!gm.detail) gm.detail = gm.status==='upcoming'?{events:[],shots:[],goalies:[],pim:[0,0]}:demoDetail(gm);
+    return {...gm, ...gm.detail};
+  }
+};
+/* påhittad tabell för demo-ungdomsserier (stabil per serie-ID) */
+function demoYouthTable(lg){
+  let seed=+lg.id; const rnd=()=>((seed=(seed*9301+49297)%233280)/233280);
+  const clubs=(DEMO_CLUBS[lg.district]||DEMO_CLUBS['Småland']).map(c=>c+(/2|Röd|Vit|B$/.test(lg.name)?' 2':''));
+  return clubs.map(team=>{const gp=8+Math.floor(rnd()*4),w=Math.floor(rnd()*gp),t=Math.floor(rnd()*(gp-w)),l=gp-w-t,gf=w*4+t*2+Math.floor(rnd()*10),ga=l*4+t*2+Math.floor(rnd()*10);
+    return {team,gp,w,t,l,otw:0,otl:0,gf,ga,tp:w*3+t};}).sort((a,b)=>b.tp-a.tp||(b.gf-b.ga)-(a.gf-a.ga));
+}
+
+/* =========================================================
+   STATE + FAVORITER
+   ========================================================= */
+let favs = [];
+try{ favs = JSON.parse(localStorage.getItem('isl-favs')||'[]'); }catch(e){}
+const saveFavs=()=>{ try{ localStorage.setItem('isl-favs',JSON.stringify(favs)); }catch(e){} };
+const isFav = t => favs.includes(t);
+let favSeries = [];
+try{ favSeries = JSON.parse(localStorage.getItem('isl-series')||'[]'); }catch(e){}
+const isFavSeries = id => favSeries.includes(id);
+function toggleFavSeries(id){ favSeries = isFavSeries(id)?favSeries.filter(x=>x!==id):[...favSeries,id]; try{ localStorage.setItem('isl-series',JSON.stringify(favSeries)); }catch(e){} render(true); }
+let seriesFilter = {q:'', district:'', age:'', gender:''};
+function toggleFav(t){ favs = isFav(t)?favs.filter(x=>x!==t):[...favs,t]; saveFavs(); render(true); }
+
+let route = {view:'today'}, selDate = API_BASE ? new Date().toISOString().slice(0,10) : DEMO_DATE;
+let leagueTab = 'table', leagueFilter = 'Alla';
+
+function parseHash(){
+  const h = location.hash.slice(1);
+  if(h.startsWith('game-')) return {view:'game', id:h.slice(5)};
+  if(h.startsWith('league-')) return {view:'league', id:h.slice(7)};
+  if(['leagues','favs'].includes(h)) return {view:h};
+  return {view:'today'};
+}
+const go = h => { location.hash = h; };
+window.addEventListener('hashchange',()=>{ route=parseHash(); render(); window.scrollTo(0,0); });
+document.getElementById('nav').addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b) go(b.dataset.go); });
+
+/* =========================================================
+   KOMPONENTER
+   ========================================================= */
+const SV_DAYS=['sön','mån','tis','ons','tor','fre','lör'];
+function dateStrip(){
+  const base = new Date(selDate+'T12:00'); let out='';
+  for(let i=-3;i<=4;i++){
+    const d=new Date(base); d.setDate(d.getDate()+i); const iso=d.toISOString().slice(0,10);
+    out+=`<button class="date ${iso===selDate?'on':''}" data-date="${iso}"><small>${SV_DAYS[d.getDay()]}</small><b>${d.getDate()}</b></button>`;
+  }
+  return `<div class="dates" id="dates">${out}</div>`;
+}
+function gameCard(x){
+  const done = x.status!=='upcoming';
+  const hw = done && x.hs>x.as, aw = done && x.as>x.hs;
+  const right = x.status==='live' ? `<span class="livetag">LIVE</span><span class="per">${x.clock||''}</span>`
+    : x.status==='final' ? `<span>Slut</span><span class="per">${x.periods.map(p=>p.join('-')).join(', ')}</span>`
+    : `<span>${route.view==='today'?'':fmtDate(x.date)+' · '}${x.time}</span><span class="per">${x.venue||''}</span>`;
+  const fav = isFav(x.home)||isFav(x.away);
+  return `<button class="game ${x.status==='live'?'live':''}" data-game="${x.id}">
+    <div class="team ${aw?'lose':''}">${badge(x.home)}<span class="nm">${x.home}</span></div><div class="score num ${aw?'lose':''}">${done?x.hs:''}</div>
+    <div class="team ${hw?'lose':''}">${badge(x.away)}<span class="nm">${x.away}</span></div><div class="score num ${hw?'lose':''}">${done?x.as:''}</div>
+    <div class="meta">${fav?'<span style="color:var(--gold)">★</span>':''}${right}${x.stream?'<span class="tv">▶ TV</span>':''}</div></button>`;
+}
+/* Grupperar dagens matcher per serie. Rubriken är en länk till seriens Idag-sida. */
+function groupBySeries(list, cat){
+  const m=new Map(); list.forEach(x=>{ const k=x.leagueId||x.league; if(!m.has(k)) m.set(k,[]); m.get(k).push(x); });
+  return [...m.entries()].map(([k,arr])=>{
+    const meta = cat.find(c=>c.id===k), live=arr.filter(x=>x.status==='live').length;
+    const title = meta?meta.name:arr[0].league, d = meta?meta.district:arr[0].district, sub = d&&d!=='Nationell'?shortDistrict(d):'';
+    return `<button class="sechead" ${meta?`data-today="${k}"`:''}><span><b>${title}</b>${sub?`<small>${sub}</small>`:''}</span>
+      ${live?`<span class="pill" style="color:var(--live)">${live} live</span>`:`<span class="pill">${arr.length}</span>`}${meta?'<span class="chev">›</span>':''}</button>
+      <div class="games">${arr.map(gameCard).join('')}</div>`;
+  }).join('');
+}
+/* "SHL (7)"-listan: alla serier som spelar idag, som underlänkar */
+function seriesToday(list, cat){
+  const m=new Map(); list.forEach(x=>{ const k=x.leagueId||x.league; const e=m.get(k)||{n:0,live:0,first:x}; e.n++; if(x.status==='live') e.live++; m.set(k,e); });
+  const rows=[...m.entries()].sort((a,b)=>b[1].live-a[1].live||(isFavSeries(b[0])-isFavSeries(a[0])));
+  return `<div class="card todaylist">${rows.map(([k,e])=>{const meta=cat.find(c=>c.id===k);
+    return `<button class="trow" ${meta?`data-today="${k}"`:''}>${isFavSeries(k)?'<span style="color:var(--gold)">★</span>':''}
+      <span class="tn"><b>${meta?meta.name:e.first.league}</b>${(meta?meta.district:e.first.district)&&(meta?meta.district:e.first.district)!=='Nationell'?`<small>${shortDistrict(meta?meta.district:e.first.district)}</small>`:''}</span>
+      ${e.live?`<span class="livetag">${e.live}</span>`:''}<span class="cnt">${e.n}</span><span class="chev">›</span></button>`;}).join('')}</div>`;
+}
+const empty = (ic,t)=>`<div class="empty"><div class="big">${ic}</div>${t}</div>`;
+
+function header(title, back){
+  const demo = (API_BASE||DATA_BASE)?'':'<span class="demo">DEMODATA</span>';
+  document.getElementById('hdr').innerHTML = `<div class="toprow">
+    ${back?`<button class="back" onclick="history.length>1?history.back():go('today')" aria-label="Tillbaka">‹</button>`:''}
+    <div class="brand">${title||'Is<span>läge</span>'}${!title?'<small class="studio">av <b>RostyFrosty</b></small>':''}</div>${demo}</div>${route.view==='today'?dateStrip():''}`;
+  const ds=document.getElementById('dates');
+  if(ds){ ds.onclick=e=>{const b=e.target.closest('[data-date]'); if(b){selDate=b.dataset.date; render();}}; const on=ds.querySelector('.on'); on&&on.scrollIntoView({inline:'center',block:'nearest'}); }
+}
+
+/* =========================================================
+   VYER
+   ========================================================= */
+async function viewToday(){
+  header();
+  const list = await api.games(selDate);
+  const cat = await catalog();
+  const mine = list.filter(x=>isFavSeries(x.leagueId));
+  const filters=[...(favSeries.length?['Mina serier']:[]),'Alla','Live','TV'];
+  if(!filters.includes(leagueFilter)) leagueFilter = favSeries.length&&mine.length?'Mina serier':'Alla';
+  const shown = {'Alla':list,'Mina serier':mine,'Live':list.filter(x=>x.status==='live'),'TV':list.filter(x=>x.stream)}[leagueFilter];
+  const live = leagueFilter==='Live'?[]:shown.filter(x=>x.status==='live');
+  return `<div class="chips">${filters.map(f=>`<button class="chip ${f===leagueFilter?'on':''}" data-filter="${f}">${f==='Live'?'● Live':f==='TV'?'▶ Sänds':f}</button>`).join('')}</div>
+    ${leagueFilter==='Alla'&&list.length?`<h2 class="sec">Serier idag <span class="pill">${new Set(list.map(x=>x.leagueId||x.league)).size}</span></h2>${seriesToday(list,cat)}`:''}
+    ${live.length?`<h2 class="sec"><span class="livetag">Pågår nu</span></h2><div class="games">${live.map(gameCard).join('')}</div>`:''}
+    ${leagueFilter==='Alla'&&list.length>40
+        ? `<p style="color:var(--dim);font-size:12px;margin:14px 4px">${list.length} matcher i ${new Set(list.map(x=>x.leagueId||x.league)).size} serier – välj en serie ovan, eller följ serier för att se dem här direkt.</p>`
+        : shown.length?groupBySeries(leagueFilter==='Live'?shown:shown.filter(x=>x.status!=='live'),cat):empty('🏒',leagueFilter==='Mina serier'?'Dina serier spelar inte den här dagen':'Inga matcher')}`;
+}
+
+function seriesRow(x){
+  return `<button class="league" data-league="${x.id}">
+    <span class="ic">${x.age?'U'+x.age:x.name.slice(0,3).toUpperCase()}</span>
+    <span class="t"><b>${x.name}</b><small>${shortDistrict(x.district)}${x.age?' · '+genderLabel[x.gender]:''}</small></span>
+    <span class="sfav ${isFavSeries(x.id)?'on':''}" data-favseries="${x.id}">${isFavSeries(x.id)?'★':'☆'}</span></button>`;
+}
+async function viewLeagues(){
+  header('Serier');
+  const cat = await catalog();
+  const rank = d => d==='Nationell'?0:/^Region /.test(d)?1:2;
+  const districts = [...new Set(cat.map(x=>x.district))].sort((a,b)=>rank(a)-rank(b)||a.localeCompare(b,'sv'));
+  const ages = [...new Set(cat.map(x=>x.age).filter(Boolean))].sort((a,b)=>a-b);
+  const mine = cat.filter(x=>isFavSeries(x.id));
+  const f = seriesFilter;
+  afterRender = () => {
+    const inp = document.getElementById('q');
+    inp.oninput = () => { f.q = inp.value; fillSeries(); };
+    document.getElementById('dist').onchange = e => { f.district = e.target.value; fillSeries(); };
+    fillSeries();
+  };
+  return `${mine.length?`<h2 class="sec">Mina serier</h2>${mine.map(seriesRow).join('')}`:''}
+    <h2 class="sec">Alla serier <span class="pill">${cat.length}</span></h2>
+    <div class="search"><input id="q" type="search" placeholder="Sök serie, t.ex. U14 Skåne" value="${f.q}" autocomplete="off"></div>
+    <select id="dist" class="select"><option value="">Hela Sverige</option>${districts.map(d=>`<option value="${d}" ${d===f.district?'selected':''}>${shortDistrict(d)}</option>`).join('')}</select>
+    <div class="chips" style="margin-top:10px">${['',...ages].map(a=>`<button class="chip ${String(a)===String(f.age)?'on':''}" data-age="${a}">${a?'U'+a:'Alla åldrar'}</button>`).join('')}</div>
+    <div class="chips" style="margin-top:8px">${[['','Alla'],['P','Pojkar'],['F','Flickor'],['H','Herr/senior']].map(([k,t])=>`<button class="chip ${k===f.gender?'on':''}" data-gender="${k}">${t}</button>`).join('')}</div>
+    <div id="seriesList" style="margin-top:14px"></div>`;
+}
+async function fillSeries(){
+  const cat = await catalog(), f = seriesFilter;
+  const words = f.q.toLowerCase().split(/\s+/).filter(Boolean);
+  const hits = cat.filter(x=>(!f.district||x.district===f.district)&&(!f.age||String(x.age)===String(f.age))&&(!f.gender||x.gender===f.gender)
+    && words.every(w=>(x.name+' '+x.district+' '+(x.age?'u'+x.age:'')).toLowerCase().includes(w)));
+  const el = document.getElementById('seriesList'); if(!el) return;
+  const LIMIT = 80;
+  el.innerHTML = hits.length ? hits.slice(0,LIMIT).map(seriesRow).join('') + (hits.length>LIMIT?`<p style="color:var(--dim);font-size:12px;margin:12px 4px">Visar ${LIMIT} av ${hits.length} – förfina sökningen.</p>`:'')
+    : empty('🔍','Inga serier matchar');
+}
+
+async function viewLeague(){
+  const lg = await seriesById(route.id);
+  header(lg.name, true);
+  const kids = lg.age && lg.age < MIN_PLAYER_AGE;
+  if(kids && leagueTab==='scorers') leagueTab='table';
+  const sub = `<div style="display:flex;align-items:center;gap:8px;margin:2px 4px 0;color:var(--muted);font-size:13px">${shortDistrict(lg.district)}${lg.age?' · '+genderLabel[lg.gender]:''}
+    <button class="pill" style="margin-left:auto" data-favseries="${lg.id}">${isFavSeries(lg.id)?'★ Min serie':'☆ Följ serie'}</button></div>`;
+  const tabs = sub+`<div class="tabs">${[['today','Idag'],['table','Tabell'],['games','Matcher'],...(kids?[]:[['scorers','Poängliga']])].map(([k,t])=>`<button class="${leagueTab===k?'on':''}" data-ltab="${k}">${t}</button>`).join('')}</div>`;
+  let body='';
+  if(leagueTab==='today'){
+    const day = (await api.games(selDate)).filter(x=>x.leagueId===lg.id);
+    const order={live:0,upcoming:1,final:2};
+    body = day.length ? `<h2 class="sec">${fmtDate(selDate)}${day.some(x=>x.status==='live')?' <span class="livetag" style="margin-left:6px">live</span>':''}</h2><div class="games">${day.sort((a,b)=>order[a.status]-order[b.status]||a.time.localeCompare(b.time)).map(gameCard).join('')}</div>`
+      : empty('🗓️',`Inga matcher ${fmtDate(selDate)}.<br>Se fliken Matcher för hela schemat.`);
+  } else if(leagueTab==='table'){
+    const st = await api.standings(lg);
+    body = st.length?`<div class="card"><table><thead><tr><th></th><th class="tm">Lag</th><th>GP</th><th>+/-</th><th>P</th></tr></thead><tbody>
+      ${st.map((r,i)=>`<tr class="${lg.id==='20961'&&(i===6||i===10||i===12)?'cut':''} ${isFav(r.team)?'fav':''}"><td class="rk">${i+1}</td><td class="tm"><div>${badge(r.team)}${r.team}</div></td><td>${r.gp}</td><td>${r.gf-r.ga>0?'+':''}${r.gf-r.ga}</td><td class="pts">${r.tp}</td></tr>`).join('')}
+      </tbody></table></div>${lg.id==='20961'?'<p style="color:var(--dim);font-size:12px;margin:10px 4px">1–6 kvartsfinal · 7–10 åttondel · 13–14 kvalserie</p>':''}`:empty('📊','Ingen tabell än');
+  } else if(leagueTab==='games'){
+    const gl = await api.leagueGames(lg) || [];
+    const byDate={}; gl.forEach(x=>(byDate[x.date]=byDate[x.date]||[]).push(x));
+    body = gl.length?Object.entries(byDate).map(([d,a])=>`<h2 class="sec">${fmtDate(d)}</h2><div class="games">${a.map(gameCard).join('')}</div>`).join(''):empty('🗓️','Inga matcher');
+  } else {
+    const sc = await api.scorers(lg);
+    body = sc.length?`<div class="card"><table><thead><tr><th></th><th class="tm">Spelare</th><th>GP</th><th>M</th><th>A</th><th>P</th></tr></thead><tbody>
+      ${sc.map((r,i)=>`<tr><td class="rk">${i+1}</td><td class="tm"><div>${badge(r.team)}${r.name}</div></td><td>${r.gp}</td><td>${r.g}</td><td>${r.a}</td><td class="pts">${r.tp}</td></tr>`).join('')}</tbody></table></div>`:empty('🎯','Ingen poängliga');
+  }
+  return tabs+body;
+}
+const fmtDate = d => { const x=new Date(d+'T12:00'); return `${SV_DAYS[x.getDay()]} ${x.getDate()} ${['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'][x.getMonth()]}`; };
+
+async function viewGame(){
+  const x = await api.game(route.id);
+  header(x.league, true);
+  const done = x.status!=='upcoming';
+  const curPer = x.periods.length;
+  const status = x.status==='live'?`<span class="livetag">LIVE · ${x.clock||''}</span>`:x.status==='final'?'Slutresultat':`${fmtDate(x.date)} · ${x.time}`;
+  const hero = `<div class="hero"><div class="lg">${x.venue||''}${x.spectators?` · ${x.spectators.toLocaleString('sv')} åskådare`:''}</div>
+    <div class="row"><div class="side">${badge(x.home,'lg')}${x.home}</div>
+    <div class="big num">${done?`${x.hs}<span style="color:var(--dim)">–</span>${x.as}`:'<span style="font-size:32px;color:var(--muted)">vs</span>'}</div>
+    <div class="side">${badge(x.away,'lg')}${x.away}</div></div>
+    <div class="status">${status}</div>
+    ${done?`<div class="pers">${x.periods.map((p,i)=>`<span class="${x.status==='live'&&i===curPer-1?'cur':''}">P${i+1} ${p[0]}-${p[1]}</span>`).join('')}</div>`:''}
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="favbtn" data-fav="${x.home}">${isFav(x.home)?'★':'☆'} ${abbr(x.home)}</button>
+      <button class="favbtn" data-fav="${x.away}">${isFav(x.away)?'★':'☆'} ${abbr(x.away)}</button></div>
+    ${x.stream?`<a class="watch ${x.stream.live?'live':''}" href="${x.stream.url}" target="_blank" rel="noopener">▶ ${x.stream.live?'Se live':'Se sändningen'} på svenskhockey.tv</a>`:''}</div>`;
+  if(!done) return hero+empty('⏳','Matchen har inte startat. Händelser visas här live när den börjar.');
+
+  const sh=[x.shots.reduce((s,p)=>s+p[0],0), x.shots.reduce((s,p)=>s+p[1],0)];
+  const statBar=(lbl,a,b,fmt=v=>v)=>{const t=(a+b)||1;return `<div class="statrow"><div class="lbl"><b class="num" style="font-size:17px">${fmt(a)}</b><span>${lbl}</span><b class="num" style="font-size:17px">${fmt(b)}</b></div>
+    <div class="bar"><i style="flex:${a/t};background:${barCol(x.home)}"></i><i style="flex:${b/t};background:${barCol(x.away)}"></i></div></div>`;};
+  /* målvakten med flest skott emot per lag (byten förekommer) */
+  const gkFor = t => (x.goalies||[]).filter(g=>g.team===t).sort((a,b)=>b.sa-a.sa)[0];
+  const svp = gk => gk.sa?((gk.sv/gk.sa)*100).toFixed(1).replace('.',',')+'%':'–';
+  const stats = `<h2 class="sec">Statistik</h2><div class="card">
+    ${statBar('Skott',sh[0],sh[1])}
+    ${statBar('Utvisningsminuter',x.pim[0],x.pim[1])}
+    ${gkFor(x.home)||gkFor(x.away)?`<div class="statrow"><div class="lbl"><span>${gkFor(x.home)?`${gkFor(x.home).name} · <b>${svp(gkFor(x.home))}</b>`:'–'}</span><span>Räddn.</span><span>${gkFor(x.away)?`<b>${svp(gkFor(x.away))}</b> · ${gkFor(x.away).name}`:'–'}</span></div></div>`:''}
+    </div>`;
+
+  const evIcon={goal:'●',pen:'⏱',gk:'⇄'};
+  let tl='', lastP=0;
+  [...x.events].sort((a,b)=>b.period-a.period||b.time.localeCompare(a.time)).forEach(e=>{
+    if(e.period!==lastP){ tl+=`<div class="perhead">Period ${e.period}</div>`; lastP=e.period; }
+    tl+=`<div class="ev ${e.type} ${e.fresh?'new':''}"><div class="tm">${e.time}</div><div class="body"><span class="ico">${evIcon[e.type]||'•'}</span>
+      <div><b>${e.title}</b><small>${abbr(e.team)} · ${e.text||''}</small></div>${e.score?`<span class="sc">${e.score}</span>`:''}</div></div>`;
+    e.fresh=false;
+  });
+  return hero+stats+`<h2 class="sec">Händelser ${x.status==='live'?'<span class="pill">uppdateras live</span>':''}</h2><div class="card tl">${tl||empty('—','Inga händelser än')}</div>`;
+}
+
+async function viewFavs(){
+  header('Mina lag');
+  if(!favs.length) return empty('⭐','Inga favoritlag än.<br><br>Öppna en match och tryck på ☆ vid ett lag – då samlas lagets matcher här.')
+    +`<h2 class="sec">Snabbval</h2><div class="chips" style="flex-wrap:wrap">${Object.keys(TEAMS).slice(0,14).map(t=>`<button class="chip" data-fav="${t}">${abbr(t)}</button>`).join('')}</div>`;
+  const all = await api.allGames();
+  return favs.map(t=>{
+    const gl = all.filter(x=>x.home===t||x.away===t).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    const upcoming = gl.filter(x=>x.status!=='final').slice(0,3), recent = gl.filter(x=>x.status==='final').slice(-3).reverse();
+    return `<h2 class="sec">${badge(t)} ${t}<button class="pill" data-fav="${t}">Ta bort</button></h2><div class="games">${[...upcoming,...recent].map(gameCard).join('')||empty('🗓️','Inga matcher hittade')}</div>`;
+  }).join('');
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+const app = document.getElementById('app');
+let renderToken=0, afterRender=null;
+async function render(silent){
+  const tok=++renderToken; afterRender=null;
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',
+    b.dataset.go===route.view || (b.dataset.go==='leagues'&&route.view==='league') || (b.dataset.go==='today'&&route.view==='game')));
+  try{
+    const html = await ({today:viewToday,leagues:viewLeagues,league:viewLeague,game:viewGame,favs:viewFavs}[route.view]||viewToday)();
+    if(tok!==renderToken) return;
+    if(route.view==='leagues' && silent && document.getElementById('q')){ /* behåll sökfältets fokus */
+      const focused = document.activeElement && document.activeElement.id==='q';
+      app.innerHTML = html; if(afterRender) afterRender(); if(focused){ const q=document.getElementById('q'); q.focus(); q.setSelectionRange(q.value.length,q.value.length); } return; }
+    app.innerHTML = silent?html:`<div class="fade">${html}</div>`;
+    if(afterRender) afterRender();
+  }catch(err){
+    app.innerHTML = empty('⚠️','Kunde inte hämta data. Försök igen om en stund.');
+  }
+}
+app.addEventListener('click',e=>{
+  const t=e.target.closest('[data-today],[data-favseries],[data-game],[data-league],[data-ltab],[data-filter],[data-fav],[data-age],[data-gender]'); if(!t) return;
+  if(t.dataset.today){ leagueTab='today'; go('league-'+t.dataset.today); return; }
+  if(t.dataset.favseries){ e.stopPropagation(); toggleFavSeries(t.dataset.favseries); return; }
+  if(t.dataset.age!==undefined){ seriesFilter.age=t.dataset.age; document.querySelectorAll('[data-age]').forEach(b=>b.classList.toggle('on',b===t)); fillSeries(); return; }
+  if(t.dataset.gender!==undefined){ seriesFilter.gender=t.dataset.gender; document.querySelectorAll('[data-gender]').forEach(b=>b.classList.toggle('on',b===t)); fillSeries(); return; }
+  if(t.dataset.fav){ e.stopPropagation(); toggleFav(t.dataset.fav); return; }
+  if(t.dataset.game) go('game-'+t.dataset.game);
+  else if(t.dataset.league){ leagueTab='today'; go('league-'+t.dataset.league); }
+  else if(t.dataset.ltab){ leagueTab=t.dataset.ltab; render(true); }
+  else if(t.dataset.filter){ leagueFilter=t.dataset.filter; render(true); }
+});
+let toastT; function toast(m){ const el=document.getElementById('toast'); el.textContent=m; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2500); }
+
+route = parseHash(); render();
+/* PWA: registrera service worker när sidan körs från egen domän (inte i förhandsvisningar) */
+if('serviceWorker' in navigator && location.protocol==='https:'){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+if(!API_BASE) setInterval(simTick,1000);
+else setInterval(()=>{ if(route.view==='today'||route.view==='game') render(true); }, LIVE_POLL_MS);
+</script>
+</body>
+</html>

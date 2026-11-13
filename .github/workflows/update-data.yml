@@ -1,0 +1,34 @@
+name: Uppdatera hockeydata
+
+on:
+  schedule:
+    # Tider i UTC. 05:30 och 21:45 svensk vintertid (efter kvällens matcher).
+    - cron: '30 4 * * *'
+    - cron: '45 20 * * *'
+  workflow_dispatch: {}   # gör att du kan köra den manuellt från fliken Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Hämta från swehockey
+        run: node scripts/scrape.mjs
+      - name: Spara ändringar
+        run: |
+          git config user.name  "islage-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add site/data
+          git diff --cached --quiet || git commit -m "Data $(date -u +'%Y-%m-%d %H:%M')"
+          git pull --rebase && git push

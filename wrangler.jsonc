@@ -1,0 +1,15 @@
+// Cloudflare Workers: worker.js svarar på /api/*, allt annat serveras från mappen site/.
+// Publiceras automatiskt när något pushas till main (koppla repot i Cloudflare → Workers Builds).
+{
+  "name": "islage",
+  "main": "worker.js",
+  "compatibility_date": "2025-10-01",
+  "assets": {
+    "directory": "./site",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "routes": [
+    { "pattern": "islage.geapanenbanan.com", "custom_domain": true }
+  ]
+}

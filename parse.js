@@ -256,3 +256,51 @@ export function parseSelects(html) {
     groups: grp && grp !== fam ? grp.items : []
   };
 }
+
+/* ---------------- laguppställning: /Game/LineUps/{id} ----------------
+ * Sidan är text i ordningen: Referee(s) … Linesmen … Hemmalag (Färg) Head Coach: … Goalies …
+ * 1st Line … Extra Players … Bortalag (Färg) … (bortalagets sektioner kan komma i omvänd ordning).
+ * Varje nyckelord står före sina spelare, så tolkningen går på nyckelord, inte på ordning.
+ */
+const LU_KEYS = /(Head Coach:|Assistant Coach:|Goalies|Extra Players|(\d)(?:st|nd|rd|th) Line)/g;
+const luPlayers = (s, hide) => s.split(/\s+(?=\d{1,3}\.\s)/).map(x => x.trim())
+  .map(x => x.match(/^(\d{1,3})\.\s+(.+?),\s+(.+?)(?:\s+\((\w{1,2})\))?$/))
+  .filter(Boolean).map(m => ({ no: +m[1], name: `${m[3]} ${m[2]}`.replace(/\s+/g, ' ').trim(), pos: m[4] || '' }))
+  .filter(p => !hide.has(p.name.toLowerCase()));
+const luCoach = s => { const m = s.trim().match(/^([^,]{2,40}),\s*(\S+)/); return m ? `${m[2]} ${m[1]}` : ''; };
+function luTeam(seg, name, hide) {
+  const team = { name, color: (seg.match(/^.*?\(([^)]*)\)/) || [])[1] || '', coach: '', assistant: '', goalies: [], lines: [], extra: [] };
+  const keys = [...seg.matchAll(LU_KEYS)];
+  keys.forEach((k, i) => {
+    const body = seg.slice(k.index + k[0].length, i + 1 < keys.length ? keys[i + 1].index : seg.length);
+    if (k[0] === 'Head Coach:') team.coach = luCoach(body);
+    else if (k[0] === 'Assistant Coach:') team.assistant = luCoach(body);
+    else if (k[0] === 'Goalies') team.goalies = luPlayers(body, hide);
+    else if (k[0] === 'Extra Players') team.extra = luPlayers(body, hide);
+    else team.lines[+k[2] - 1] = luPlayers(body, hide);
+  });
+  team.lines = team.lines.filter(l => l && l.length);
+  return team;
+}
+// Bortalaget är spegelvänt på sidan (forwards före backar, reserv före ordinarie målvakt)
+const mirror = t => ({ ...t, goalies: [...t.goalies].reverse(), lines: t.lines.map(l => [...l].reverse()) });
+export function parseLineups(html, hidden = []) {
+  const hide = new Set(hidden.flatMap(n => [n.toLowerCase(), flipName(n).toLowerCase()]));
+  let home = '', away = '';
+  for (const r of rows(html)) {
+    const c = r.cells;
+    if (c.length === 1 && /tdTitle/.test(c[0].cls) && / - /.test(c[0].text)) { [home, away] = c[0].text.split(/\s+-\s+/); break; }
+  }
+  const t = text(html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' '));
+  const start = Math.max(0, t.search(/Referee\(s\)|Line Up\s+Last update/));
+  const body = t.slice(start);
+  const hi = home ? body.indexOf(home + ' (') : -1, ai = away ? body.indexOf(away + ' (', hi + 1) : -1;
+  if (hi < 0 || ai < 0) return { available: false, referees: '', linesmen: '', teams: [] };
+  const pre = body.slice(0, hi);
+  return {
+    available: true,
+    referees: ((pre.match(/Referee\(s\)\s+(.*?)(?:\s+Linesmen|$)/) || [])[1] || '').trim(),
+    linesmen: ((pre.match(/Linesmen\s+(.*)$/) || [])[1] || '').trim(),
+    teams: [luTeam(body.slice(hi, ai), home, hide), mirror(luTeam(body.slice(ai), away, hide))]
+  };
+}

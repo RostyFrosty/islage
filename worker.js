@@ -8,13 +8,14 @@
  *   GET /api/league/{id}/scorers        poängliga                       ← /Players/Statistics/ScoringLeaders/{id}
  *   GET /api/league/{id}/groups         seriens övriga grupper          ← /ScheduleAndResults/Overview/{id}
  *   GET /api/game/{id}                  matchrapport                    ← /Game/Events/{id}
+ *   GET /api/game/{id}/lineup           laguppställning                 ← /Game/LineUps/{id}
  *
  * Allt annat (appen, data/catalog.json …) serveras från mappen site/ via ASSETS (wrangler.jsonc).
  * Adresser och tolkning verifierade mot riktiga sidor 2026-11-13.
  */
 import HIDDEN from './hidden.json';
 import { attachStreams } from './streams.js';
-import { parseGameList, parseStandings, parseScorers, parseGame, parseSelects } from './parse.js';
+import { parseGameList, parseStandings, parseScorers, parseGame, parseSelects, parseLineups } from './parse.js';
 
 const SRC = 'https://stats.swehockey.se';
 const TTL = { live: 20, day: 120, league: 600, final: 3600 };
@@ -42,6 +43,10 @@ export default {
         if (p[3] === 'standings') return json(parseStandings(await get(`/ScheduleAndResults/Standings/${id}`, TTL.league, ctx)), 200, TTL.league);
         if (p[3] === 'scorers')   return json(parseScorers(await get(`/Players/Statistics/ScoringLeaders/${id}`, TTL.league, ctx), HIDDEN), 200, TTL.league);
         if (p[3] === 'groups')    return json(parseSelects(await get(`/ScheduleAndResults/Overview/${id}`, TTL.final, ctx)).groups, 200, TTL.final);
+      }
+      if (p[1] === 'game' && /^\d+$/.test(p[2] || '') && p[3] === 'lineup') {
+        const lu = parseLineups(await get(`/Game/LineUps/${p[2]}`, TTL.league, ctx), HIDDEN);
+        return json(lu, 200, lu.available ? TTL.league : TTL.live);
       }
       if (p[1] === 'game' && /^\d+$/.test(p[2] || '')) {
         const game = parseGame(await get(`/Game/Events/${p[2]}`, TTL.live, ctx), p[2]);

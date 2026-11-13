@@ -98,6 +98,16 @@ h2.sec .pill{margin-left:auto}
 .todaylist .trow + .trow{border-top:1px solid var(--line)}
 .trow .tn{flex:1;min-width:0}.trow .tn b{font-weight:600;display:block}.trow .tn small{color:var(--muted);font-size:12px}
 .trow .cnt{font-family:"Barlow Condensed";font-size:17px;color:var(--muted);min-width:18px;text-align:right}
+.tstar{font-size:15px;color:var(--dim);padding:0 2px}.tstar.on{color:var(--gold)}
+.live-pill{color:var(--live)!important}
+.lgrp + .lgrp{border-top:1px solid var(--line)}
+.lp{display:flex;align-items:center;gap:12px;padding:9px 16px;font-size:14px}
+.lp .no{width:26px;text-align:right;color:var(--muted);font-family:"Barlow Condensed";font-size:16px}
+.lp small{margin-left:auto;color:var(--dim);font-size:11px}
+.lsub{padding:6px 16px 0;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px}
+.chip .badge{width:18px;height:18px;font-size:9px;border-radius:5px;display:inline-grid;vertical-align:-4px;margin-right:4px}
+.favhead{display:flex;align-items:center;gap:10px;margin:22px 4px 10px}
+.favhead .fn{flex:1;min-width:0}.favhead .fn b{display:block;font-size:15px}.favhead .fn small{color:var(--muted);font-size:12px}
 /* Tabs */
 .tabs{display:flex;background:var(--card);border-radius:12px;padding:4px;margin:14px 0}
 .tabs button{flex:1;padding:9px 0;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted)}
@@ -381,6 +391,10 @@ const api = {
     const lgs = favSeries.length ? cat.filter(x=>favSeries.includes(x.id)) : NATIONAL;
     return (await Promise.all(lgs.map(lg=>this.leagueGames(lg).catch(()=>[])))).flat();
   },
+  async lineup(id){
+    if(API_BASE) return this.get(`${API_BASE}/api/game/${id}/lineup`);
+    return {available:false, demo:true, teams:[]};
+  },
   async game(id){
     if(API_BASE) return this.get(`${API_BASE}/api/game/${id}`);
     const gm = DEMO.games.find(x=>x.id===id);
@@ -409,9 +423,19 @@ try{ favSeries = JSON.parse(localStorage.getItem('isl-series')||'[]'); }catch(e)
 const isFavSeries = id => favSeries.includes(id);
 function toggleFavSeries(id){ favSeries = isFavSeries(id)?favSeries.filter(x=>x!==id):[...favSeries,id]; try{ localStorage.setItem('isl-series',JSON.stringify(favSeries)); }catch(e){} render(true); }
 let seriesFilter = {q:'', district:'', age:'', gender:''};
-function toggleFav(t){ favs = isFav(t)?favs.filter(x=>x!==t):[...favs,t]; saveFavs(); render(true); }
+/* Favoritlag minns vilken serie de spelar i, så att Mina lag kan hämta lagets matcher (även ungdomslag) */
+let favLeague = {};
+try{ favLeague = JSON.parse(localStorage.getItem('isl-favleague')||'{}'); }catch(e){}
+const gameLeague = {};   /* match-ID → serie-ID, fylls när matchkort visas */
+function toggleFav(t, lid){
+  if(isFav(t)){ favs = favs.filter(x=>x!==t); delete favLeague[t]; toast(`${t} borttagen från Mina lag`); }
+  else { favs = [...favs,t]; if(lid) favLeague[t]=lid; toast(`★ ${t} finns nu under Mina lag`); }
+  saveFavs(); try{ localStorage.setItem('isl-favleague',JSON.stringify(favLeague)); }catch(e){}
+  render(true);
+}
 
-let route = {view:'today'}, selDate = API_BASE ? new Date().toISOString().slice(0,10) : DEMO_DATE;
+const todaySE = () => new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm'});
+let route = {view:'today'}, selDate = API_BASE ? todaySE() : DEMO_DATE;
 let leagueTab = 'table', leagueFilter = 'Alla';
 
 function parseHash(){
@@ -438,6 +462,7 @@ function dateStrip(){
   return `<div class="dates" id="dates">${out}</div>`;
 }
 function gameCard(x){
+  if(x.leagueId) gameLeague[x.id]=x.leagueId;
   const done = x.status!=='upcoming';
   const hw = done && x.hs>x.as, aw = done && x.as>x.hs;
   const right = x.status==='live' ? `<span class="livetag">LIVE</span><span class="per">${x.clock||''}</span>`
@@ -557,7 +582,7 @@ async function viewLeague(){
   } else if(leagueTab==='table'){
     const st = await api.standings(lg);
     body = st.length?`<div class="card"><table><thead><tr><th></th><th class="tm">Lag</th><th>GP</th><th>+/-</th><th>P</th></tr></thead><tbody>
-      ${st.map((r,i)=>`<tr class="${lg.id==='20961'&&(i===6||i===10||i===12)?'cut':''} ${isFav(r.team)?'fav':''}"><td class="rk">${i+1}</td><td class="tm"><div>${badge(r.team)}${r.team}</div></td><td>${r.gp}</td><td>${r.gf-r.ga>0?'+':''}${r.gf-r.ga}</td><td class="pts">${r.tp}</td></tr>`).join('')}
+      ${st.map((r,i)=>`<tr class="${lg.id==='20961'&&(i===6||i===10||i===12)?'cut':''} ${isFav(r.team)?'fav':''}"><td class="rk">${i+1}</td><td class="tm"><div>${badge(r.team)}<span style="flex:1">${r.team}</span><button class="tstar ${isFav(r.team)?'on':''}" data-fav="${r.team}" data-fav-league="${lg.id}" aria-label="Favoritlag">${isFav(r.team)?'★':'☆'}</button></div></td><td>${r.gp}</td><td>${r.gf-r.ga>0?'+':''}${r.gf-r.ga}</td><td class="pts">${r.tp}</td></tr>`).join('')}
       </tbody></table></div>${lg.id==='20961'?'<p style="color:var(--dim);font-size:12px;margin:10px 4px">1–6 kvartsfinal · 7–10 åttondel · 13–14 kvalserie</p>':''}`:empty('📊','Ingen tabell än');
   } else if(leagueTab==='games'){
     const gl = await api.leagueGames(lg) || [];
@@ -572,8 +597,19 @@ async function viewLeague(){
 }
 const fmtDate = d => { const x=new Date(d+'T12:00'); return `${SV_DAYS[x.getDay()]} ${x.getDate()} ${['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'][x.getMonth()]}`; };
 
+/* liveuppdatering: kom ihåg vilka händelser som redan visats per match */
+const seenEvents = {};
+let lineupTeam = 0, gameTab = 'events', lastGameId = null, lastGameStatus = null, lastUpdated = null;
+const evKey = e => `${e.period}|${e.time}|${e.type}|${e.title}`;
 async function viewGame(){
+  if(route.id!==lastGameId){ gameTab='events'; lastGameId=route.id; }
   const x = await api.game(route.id);
+  lastGameStatus = x.status; lastUpdated = new Date();
+  const lid = x.leagueId || gameLeague[route.id] || '';
+  /* markera nya händelser och meddela nya mål */
+  const prev = seenEvents[route.id];
+  (x.events||[]).forEach(e=>{ if(prev && !prev.has(evKey(e))){ e.fresh=true; if(e.type==='goal' && API_BASE) toast(`MÅL! ${abbr(e.team)} ${e.score||''} – ${e.title.replace('Mål – ','')}`); } });
+  seenEvents[route.id] = new Set((x.events||[]).map(evKey));
   header(x.league, true);
   const done = x.status!=='upcoming';
   const curPer = x.periods.length;
@@ -585,10 +621,12 @@ async function viewGame(){
     <div class="status">${status}</div>
     ${done?`<div class="pers">${x.periods.map((p,i)=>`<span class="${x.status==='live'&&i===curPer-1?'cur':''}">P${i+1} ${p[0]}-${p[1]}</span>`).join('')}</div>`:''}
     <div style="display:flex;gap:8px;justify-content:center">
-      <button class="favbtn" data-fav="${x.home}">${isFav(x.home)?'★':'☆'} ${abbr(x.home)}</button>
-      <button class="favbtn" data-fav="${x.away}">${isFav(x.away)?'★':'☆'} ${abbr(x.away)}</button></div>
+      <button class="favbtn" data-fav="${x.home}" data-fav-league="${lid}">${isFav(x.home)?'★':'☆'} ${abbr(x.home)}</button>
+      <button class="favbtn" data-fav="${x.away}" data-fav-league="${lid}">${isFav(x.away)?'★':'☆'} ${abbr(x.away)}</button></div>
     ${x.stream?`<a class="watch ${x.stream.live?'live':''}" href="${x.stream.url}" target="_blank" rel="noopener">▶ ${x.stream.live?'Se live':'Se sändningen'} på svenskhockey.tv</a>`:''}</div>`;
-  if(!done) return hero+empty('⏳','Matchen har inte startat. Händelser visas här live när den börjar.');
+  const tabs = `<div class="tabs" style="margin-top:18px">${[['events','Händelser'],['lineup','Laguppställning']].map(([k,t])=>`<button class="${gameTab===k?'on':''}" data-gtab="${k}">${t}</button>`).join('')}</div>`;
+  if(gameTab==='lineup') return hero+tabs+await lineupView(x, lid);
+  if(!done) return hero+tabs+empty('⏳','Matchen har inte startat. Händelser visas här live när den börjar.');
 
   const sh=[x.shots.reduce((s,p)=>s+p[0],0), x.shots.reduce((s,p)=>s+p[1],0)];
   const statBar=(lbl,a,b,fmt=v=>v)=>{const t=(a+b)||1;return `<div class="statrow"><div class="lbl"><b class="num" style="font-size:17px">${fmt(a)}</b><span>${lbl}</span><b class="num" style="font-size:17px">${fmt(b)}</b></div>
@@ -610,18 +648,49 @@ async function viewGame(){
       <div><b>${e.title}</b><small>${abbr(e.team)} · ${e.text||''}</small></div>${e.score?`<span class="sc">${e.score}</span>`:''}</div></div>`;
     e.fresh=false;
   });
-  return hero+stats+`<h2 class="sec">Händelser ${x.status==='live'?'<span class="pill">uppdateras live</span>':''}</h2><div class="card tl">${tl||empty('—','Inga händelser än')}</div>`;
+  const upd = x.status==='live' ? `<span class="pill live-pill">● live · ${lastUpdated.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>` : '';
+  return hero+tabs+stats+`<h2 class="sec">Händelser ${upd}</h2><div class="card tl">${tl||empty('—','Inga händelser än')}</div>`;
+}
+
+/* laguppställning – dold för de yngsta åldrarna (barns namn), som poängligan */
+async function lineupView(x, lid){
+  const meta = lid ? (await catalog()).find(c=>c.id===lid) : null;
+  const age = meta?.age || +((x.league||'').match(/\bU(\d{1,2})/)||[])[1] || null;
+  if(age && age < MIN_PLAYER_AGE) return empty('🔒','Laguppställningar visas inte för de yngsta åldrarna.');
+  let lu; try{ lu = await api.lineup(route.id); }catch(e){ return empty('⚠️','Kunde inte hämta laguppställningen.'); }
+  if(lu.demo) return empty('👥','Laguppställningen hämtas från swehockey på den riktiga sajten.');
+  if(!lu.available || !lu.teams.length) return empty('👥','Ingen laguppställning är rapporterad för matchen än.');
+  if(lineupTeam > 1) lineupTeam = 0;
+  const t = lu.teams[lineupTeam];
+  const pl = p => `<div class="lp"><span class="no num">${p.no}</span><span>${p.name}</span>${p.pos?`<small>${p.pos}</small>`:''}</div>`;
+  const block = (title, list) => list.length ? `<div class="lgrp"><div class="perhead">${title}</div>${list.map(pl).join('')}</div>` : '';
+  const line = (l,i) => l.length===5
+    ? `<div class="lgrp"><div class="perhead">Femma ${i+1}</div><div class="lsub">Backar</div>${l.slice(0,2).map(pl).join('')}<div class="lsub">Forwards</div>${l.slice(2).map(pl).join('')}</div>`
+    : block(`Femma ${i+1}`, l);
+  return `<div class="chips" style="margin:2px 0 12px">${lu.teams.map((tm,i)=>`<button class="chip ${i===lineupTeam?'on':''}" data-lteam="${i}">${badge(tm.name)} ${tm.name}</button>`).join('')}</div>
+    <div class="card">${block('Målvakter', t.goalies)}${t.lines.map(line).join('')}${block('Extraspelare', t.extra)}
+      ${t.coach||t.assistant?`<div class="lgrp"><div class="perhead">Ledare</div>${t.coach?`<div class="lp"><span class="no">HC</span><span>${t.coach}</span></div>`:''}${t.assistant?`<div class="lp"><span class="no">AC</span><span>${t.assistant}</span></div>`:''}</div>`:''}</div>
+    ${lu.referees||lu.linesmen?`<p style="color:var(--dim);font-size:12px;margin:12px 4px">Domare: ${lu.referees||'–'}${lu.linesmen?` · Linjedomare: ${lu.linesmen}`:''}</p>`:''}`;
 }
 
 async function viewFavs(){
   header('Mina lag');
-  if(!favs.length) return empty('⭐','Inga favoritlag än.<br><br>Öppna en match och tryck på ☆ vid ett lag – då samlas lagets matcher här.')
-    +`<h2 class="sec">Snabbval</h2><div class="chips" style="flex-wrap:wrap">${Object.keys(TEAMS).slice(0,14).map(t=>`<button class="chip" data-fav="${t}">${abbr(t)}</button>`).join('')}</div>`;
-  const all = await api.allGames();
+  if(!favs.length) return empty('⭐','Inga favoritlag än.<br><br>Tryck på ☆ vid ett lag på en matchsida eller i en tabell – då samlas lagets matcher här.')
+    +`<h2 class="sec">Snabbval</h2><div class="chips" style="flex-wrap:wrap">${Object.keys(TEAMS).slice(0,14).map(t=>`<button class="chip" data-fav="${t}" data-fav-league="${['Leksands IF','MoDo Hockey','AIK','BIK Karlskoga','Södertälje SK','Västerås IK','Kalmar HC','IK Oskarshamn','Mora IK','Almtuna IS','Vimmerby HC','Östersunds IK','Nybro Vikings IF','Visby/Roma HK'].includes(t)?'20962':'20961'}">${abbr(t)}</button>`).join('')}</div>`;
+  const cat = await catalog();
+  /* hämta varje serie en gång, även om flera favoritlag spelar i den */
+  const lids = [...new Set(favs.map(t=>favLeague[t]).filter(Boolean))];
+  const perLeague = {};
+  await Promise.all(lids.map(async id=>{ const lg = cat.find(c=>c.id===id) || {id, name:''}; perLeague[id] = await api.leagueGames(lg).catch(()=>[]); }));
+  const fallback = favs.some(t=>!favLeague[t]) ? await api.allGames() : [];
   return favs.map(t=>{
-    const gl = all.filter(x=>x.home===t||x.away===t).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-    const upcoming = gl.filter(x=>x.status!=='final').slice(0,3), recent = gl.filter(x=>x.status==='final').slice(-3).reverse();
-    return `<h2 class="sec">${badge(t)} ${t}<button class="pill" data-fav="${t}">Ta bort</button></h2><div class="games">${[...upcoming,...recent].map(gameCard).join('')||empty('🗓️','Inga matcher hittade')}</div>`;
+    const lid = favLeague[t], meta = lid && cat.find(c=>c.id===lid);
+    const pool = lid ? (perLeague[lid]||[]) : fallback;
+    const gl = pool.filter(x=>x.home===t||x.away===t).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    const live = gl.filter(x=>x.status==='live'), upcoming = gl.filter(x=>x.status==='upcoming').slice(0,3), recent = gl.filter(x=>x.status==='final').slice(-3).reverse();
+    return `<div class="favhead">${badge(t)}<span class="fn"><b>${t}</b>${meta?`<small>${meta.name}${meta.district&&meta.district!=='Nationell'?' · '+shortDistrict(meta.district):''}</small>`:''}</span>
+        ${lid?`<button class="pill" data-league="${lid}">Serien ›</button>`:''}<button class="pill" data-fav="${t}">Ta bort</button></div>
+      <div class="games">${[...live,...upcoming,...recent].map(gameCard).join('')||empty('🗓️',lid?'Inga matcher hittade i serien':'Öppna en match med laget och stjärnmärk igen, så kopplas laget till sin serie')}</div>`;
   }).join('');
 }
 
@@ -647,12 +716,14 @@ async function render(silent){
   }
 }
 app.addEventListener('click',e=>{
-  const t=e.target.closest('[data-today],[data-favseries],[data-game],[data-league],[data-ltab],[data-filter],[data-fav],[data-age],[data-gender]'); if(!t) return;
+  const t=e.target.closest('[data-gtab],[data-lteam],[data-today],[data-favseries],[data-game],[data-league],[data-ltab],[data-filter],[data-fav],[data-age],[data-gender]'); if(!t) return;
+  if(t.dataset.gtab){ gameTab=t.dataset.gtab; render(true); return; }
+  if(t.dataset.lteam!==undefined){ lineupTeam=+t.dataset.lteam; render(true); return; }
   if(t.dataset.today){ leagueTab='today'; go('league-'+t.dataset.today); return; }
   if(t.dataset.favseries){ e.stopPropagation(); toggleFavSeries(t.dataset.favseries); return; }
   if(t.dataset.age!==undefined){ seriesFilter.age=t.dataset.age; document.querySelectorAll('[data-age]').forEach(b=>b.classList.toggle('on',b===t)); fillSeries(); return; }
   if(t.dataset.gender!==undefined){ seriesFilter.gender=t.dataset.gender; document.querySelectorAll('[data-gender]').forEach(b=>b.classList.toggle('on',b===t)); fillSeries(); return; }
-  if(t.dataset.fav){ e.stopPropagation(); toggleFav(t.dataset.fav); return; }
+  if(t.dataset.fav){ e.stopPropagation(); toggleFav(t.dataset.fav, t.dataset.favLeague); return; }
   if(t.dataset.game) go('game-'+t.dataset.game);
   else if(t.dataset.league){ leagueTab='today'; go('league-'+t.dataset.league); }
   else if(t.dataset.ltab){ leagueTab=t.dataset.ltab; render(true); }
@@ -666,7 +737,12 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 if(!API_BASE) setInterval(simTick,1000);
-else setInterval(()=>{ if(route.view==='today'||route.view==='game') render(true); }, LIVE_POLL_MS);
+else setInterval(()=>{
+  if(document.hidden) return;                                   /* spara batteri när appen ligger i bakgrunden */
+  if(route.view==='game' && gameTab==='events' && lastGameStatus==='live') render(true);
+  else if(route.view==='today' && selDate===todaySE()) render(true);
+}, LIVE_POLL_MS);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && route.view==='game' && lastGameStatus==='live') render(true); });
 </script>
 </body>
 </html>

@@ -106,7 +106,11 @@ h2.sec .pill{margin-left:auto}
 .lp small{margin-left:auto;color:var(--dim);font-size:11px}
 .lsub{padding:6px 16px 0;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px}
 .chip .badge{width:18px;height:18px;font-size:9px;border-radius:5px;display:inline-grid;vertical-align:-4px;margin-right:4px}
-.favhead{display:flex;align-items:center;gap:10px;margin:22px 4px 10px}
+.favhead{display:flex;align-items:center;gap:10px;margin:8px 0;padding:12px;border-radius:16px;background:var(--card);cursor:pointer;width:100%;text-align:left}
+.favhead .fchev{color:var(--dim);transition:transform .2s;font-size:18px}.favhead.open .fchev{transform:rotate(90deg)}
+.favhead .fnext{color:var(--muted);font-size:12px;white-space:nowrap}
+.favgames{margin:0 0 14px}.favgames[hidden]{display:none}
+.chips.tf{margin-top:12px}
 .favhead .fn{flex:1;min-width:0}.favhead .fn b{display:block;font-size:15px}.favhead .fn small{color:var(--muted);font-size:12px}
 .ver{color:var(--dim);font-size:11px;text-align:center;margin:28px 0 8px}
 /* Tabs */
@@ -202,7 +206,7 @@ nav.bottom svg{width:22px;height:22px}
 const ON_SITE = location.protocol === 'https:' && !/claude|anthropic|usercontent|localhost/.test(location.hostname);
 const API_BASE  = ON_SITE ? location.origin : '';          // Workern: /api/…
 const DATA_BASE = ON_SITE ? location.origin + '/data' : ''; // statiska filer från GitHub Actions
-const APP_VERSION = '1.5 · 14 nov 2026';
+const APP_VERSION = '1.6 · 14 nov 2026';
 const LIVE_POLL_MS = 15000;
 
 /* ---------- Lag: förkortning + färg (egna badges, inga logotyper) ---------- */
@@ -447,6 +451,8 @@ function toggleFav(t, lid){
 const todaySE = () => new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm'});
 let route = {view:'today'}, selDate = API_BASE ? todaySE() : DEMO_DATE;
 let leagueTab = 'table', leagueFilter = 'Alla';
+let teamFilter = new Set(), teamFilterLeague = null;   /* lagfilter under Matcher, per serie */
+const openFavs = new Set();                             /* utfällda favoritlag */
 
 function parseHash(){
   const h = location.hash.slice(1);
@@ -596,9 +602,21 @@ async function viewLeague(){
       ${st.map((r,i)=>`<tr class="${lg.id==='20961'&&(i===6||i===10||i===12)?'cut':''} ${isFav(r.team, lg.id)?'fav':''}"><td class="rk">${i+1}</td><td class="tm"><div>${badge(r.team)}<span style="flex:1">${r.team}</span><button class="tstar ${isFav(r.team, lg.id)?'on':''}" data-fav="${r.team}" data-fav-league="${lg.id}" aria-label="Favoritlag">${isFav(r.team, lg.id)?'★':'☆'}</button></div></td><td>${r.gp}</td><td>${r.gf-r.ga>0?'+':''}${r.gf-r.ga}</td><td class="pts">${r.tp}</td></tr>`).join('')}
       </tbody></table></div>${lg.id==='20961'?'<p style="color:var(--dim);font-size:12px;margin:10px 4px">1–6 kvartsfinal · 7–10 åttondel · 13–14 kvalserie</p>':''}`:empty('📊','Ingen tabell än');
   } else if(leagueTab==='games'){
-    const gl = await withFreshToday(await api.leagueGames(lg) || [], lg.id);
+    const all = await withFreshToday(await api.leagueGames(lg) || [], lg.id);
+    if(teamFilterLeague!==lg.id){ teamFilter=new Set(); teamFilterLeague=lg.id; }
+    const teams = [...new Set(all.flatMap(x=>[x.home,x.away]))].sort((a,b)=>a.localeCompare(b,'sv'));
+    const gl = teamFilter.size ? all.filter(x=>teamFilter.has(x.home)||teamFilter.has(x.away)) : all;
     const byDate={}; gl.forEach(x=>(byDate[x.date]=byDate[x.date]||[]).push(x));
-    body = gl.length?Object.entries(byDate).map(([d,a])=>`<h2 class="sec">${fmtDate(d)}</h2><div class="games">${a.map(gameCard).join('')}</div>`).join(''):empty('🗓️','Inga matcher');
+    /* listan börjar vid dagens datum (eller nästa speldag); äldre matcher ligger ovanför */
+    const today = API_BASE ? todaySE() : DEMO_DATE;
+    const anchor = Object.keys(byDate).find(d=>d>=today);
+    const chips = teams.length>2 ? `<div class="chips tf"><button class="chip ${teamFilter.size?'':'on'}" data-tfilter="">Alla lag</button>${teams.map(t=>`<button class="chip ${teamFilter.has(t)?'on':''}" data-tfilter="${t.replace(/"/g,'&quot;')}">${t}</button>`).join('')}</div>` : '';
+    body = chips + (gl.length?Object.entries(byDate).map(([d,a])=>`<h2 class="sec" ${d===anchor?'id="gl-anchor"':''}>${fmtDate(d)}${d===today?' · idag':''}</h2><div class="games">${a.map(gameCard).join('')}</div>`).join(''):empty('🗓️','Inga matcher'));
+    afterRender = () => {
+      const el = document.getElementById('gl-anchor'); if(!el) return;
+      const hdr = document.getElementById('hdr');
+      window.scrollTo({top: el.getBoundingClientRect().top + window.scrollY - (hdr?hdr.offsetHeight:0) - 8});
+    };
   } else {
     const sc = await api.scorers(lg);
     body = sc.length?`<div class="card"><table><thead><tr><th></th><th class="tm">Spelare</th><th>GP</th><th>M</th><th>A</th><th>P</th></tr></thead><tbody>
@@ -729,9 +747,12 @@ async function viewFavs(){
     const pool = lid ? (perLeague[lid]||[]) : fallback;
     const gl = pool.filter(x=>x.home===t||x.away===t).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
     const live = gl.filter(x=>x.status==='live'), upcoming = gl.filter(x=>x.status==='upcoming').slice(0,3), recent = gl.filter(x=>x.status==='final').slice(-3).reverse();
-    return `<div class="favhead">${badge(t)}<span class="fn"><b>${t}</b>${meta?`<small>${meta.name}${meta.district&&meta.district!=='Nationell'?' · '+shortDistrict(meta.district):''}</small>`:''}</span>
-        ${lid?`<button class="pill" data-league="${lid}">Serien ›</button>`:''}<button class="pill" data-fav="${t}" data-fav-league="${lid||''}">Ta bort</button></div>
-      <div class="games">${[...live,...upcoming,...recent].map(gameCard).join('')||empty('🗓️',lid?'Inga matcher hittade i serien':'Öppna en match med laget och stjärnmärk igen, så kopplas laget till sin serie')}</div>`;
+    const key = t+'|'+(lid||''), open = openFavs.has(key), nxt = upcoming[0];
+    const status = live.length ? '<span class="livetag">LIVE</span>' : nxt ? `<span class="fnext">${fmtDate(nxt.date)} ${nxt.time||''}</span>` : '';
+    return `<div class="favhead ${open?'open':''}" data-favopen="${key.replace(/"/g,'&quot;')}">${badge(t)}<span class="fn"><b>${t}</b>${meta?`<small>${meta.name}${meta.district&&meta.district!=='Nationell'?' · '+shortDistrict(meta.district):''}</small>`:''}</span>
+        ${status}<span class="fchev">›</span></div>
+      <div class="favgames" ${open?'':'hidden'}><div style="display:flex;gap:8px;justify-content:flex-end;margin:0 4px 8px">${lid?`<button class="pill" data-league="${lid}">Serien ›</button>`:''}<button class="pill" data-fav="${t}" data-fav-league="${lid||''}">Ta bort</button></div>
+      <div class="games">${[...live,...upcoming,...recent].map(gameCard).join('')||empty('🗓️',lid?'Inga matcher hittade i serien':'Öppna en match med laget och stjärnmärk igen, så kopplas laget till sin serie')}</div></div>`;
   }).join(''));
 }
 
@@ -757,7 +778,10 @@ async function render(silent){
   }
 }
 app.addEventListener('click',e=>{
-  const t=e.target.closest('[data-gtab],[data-lteam],[data-today],[data-favseries],[data-game],[data-league],[data-ltab],[data-filter],[data-fav],[data-age],[data-gender]'); if(!t) return;
+  const t=e.target.closest('[data-tfilter],[data-favopen],[data-gtab],[data-lteam],[data-today],[data-favseries],[data-game],[data-league],[data-ltab],[data-filter],[data-fav],[data-age],[data-gender]'); if(!t) return;
+  if(t.dataset.tfilter!==undefined){ const n=t.dataset.tfilter; if(!n) teamFilter.clear(); else teamFilter.has(n)?teamFilter.delete(n):teamFilter.add(n); render(true); return; }
+  if(t.dataset.favopen!==undefined){ const k=t.dataset.favopen, open=!openFavs.has(k); open?openFavs.add(k):openFavs.delete(k);
+    t.classList.toggle('open',open); const g=t.nextElementSibling; if(g) g.hidden=!open; return; }
   if(t.dataset.gtab){ gameTab=t.dataset.gtab; render(true); return; }
   if(t.dataset.lteam!==undefined){ lineupTeam=+t.dataset.lteam; render(true); return; }
   if(t.dataset.today){ leagueTab='today'; go('league-'+t.dataset.today); return; }

@@ -110,7 +110,7 @@ h2.sec .pill{margin-left:auto}
 .favhead .fchev{color:var(--dim);transition:transform .2s;font-size:18px}.favhead.open .fchev{transform:rotate(90deg)}
 .favhead .fnext{color:var(--muted);font-size:12px;white-space:nowrap}
 .favgames{margin:0 0 14px}.favgames[hidden]{display:none}
-.chips.tf{margin-top:12px}
+.chips.tf{position:sticky;top:var(--hdrh,58px);z-index:15;background:var(--bg);margin-top:4px;padding-top:8px;padding-bottom:8px}
 .favhead .fn{flex:1;min-width:0}.favhead .fn b{display:block;font-size:15px}.favhead .fn small{color:var(--muted);font-size:12px}
 .ver{color:var(--dim);font-size:11px;text-align:center;margin:28px 0 8px}
 /* Tabs */
@@ -206,7 +206,7 @@ nav.bottom svg{width:22px;height:22px}
 const ON_SITE = location.protocol === 'https:' && !/claude|anthropic|usercontent|localhost/.test(location.hostname);
 const API_BASE  = ON_SITE ? location.origin : '';          // Workern: /api/…
 const DATA_BASE = ON_SITE ? location.origin + '/data' : ''; // statiska filer från GitHub Actions
-const APP_VERSION = '1.7 · 14 nov 2026';
+const APP_VERSION = '1.8 · 14 nov 2026';
 const LIVE_POLL_MS = 15000;
 
 /* ---------- Lag: förkortning + färg (egna badges, inga logotyper) ---------- */
@@ -532,6 +532,7 @@ function header(title, back){
   document.getElementById('hdr').innerHTML = `<div class="toprow">
     ${back?`<button class="back" onclick="history.length>1?history.back():go('today')" aria-label="Tillbaka">‹</button>`:''}
     <div class="brand">${title||'Is<span>läge</span>'}${!title?'<small class="studio">av <b>RostyFrosty</b></small>':''}</div>${demo}</div>${route.view==='today'?dateStrip():''}`;
+  document.documentElement.style.setProperty('--hdrh', document.getElementById('hdr').offsetHeight+'px');
   const ds=document.getElementById('dates');
   if(ds){ ds.onclick=e=>{const b=e.target.closest('[data-date]'); if(b){selDate=b.dataset.date; render();}}; const on=ds.querySelector('.on'); on&&on.scrollIntoView({inline:'center',block:'nearest'}); }
 }
@@ -629,7 +630,8 @@ async function viewLeague(){
     afterRender = () => {
       const el = document.getElementById('gl-anchor'); if(!el) return;
       const hdr = document.getElementById('hdr');
-      window.scrollTo({top: el.getBoundingClientRect().top + window.scrollY - (hdr?hdr.offsetHeight:0) - 8});
+      const tf = document.querySelector('.chips.tf');
+      window.scrollTo({top: el.getBoundingClientRect().top + window.scrollY - (hdr?hdr.offsetHeight:0) - (tf?tf.offsetHeight:0) - 8});
     };
   } else {
     const sc = await api.scorers(lg);

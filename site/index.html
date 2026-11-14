@@ -738,7 +738,7 @@ async function viewFavs(){
   /* hämta varje serie en gång, även om flera favoritlag spelar i den */
   const lids = [...new Set(favs.map(f=>f.lid).filter(Boolean))];
   const perLeague = {};
-  await Promise.all(lids.map(async id=>{ const lg = cat.find(c=>c.id===id) || {id, name:''}; perLeague[id] = await api.leagueGames(lg).catch(()=>[]); }));
+  await Promise.all(lids.map(async id=>{ const lg = cat.find(c=>c.id===id) || {id, name:''}; perLeague[id] = await withFreshToday(await api.leagueGames(lg).catch(()=>[]) || [], id); }));
   const fallback = favs.some(f=>!f.lid) ? await api.allGames() : [];
   /* sortera: lag med pågående match först, sedan klubb och ålder */
   const sorted = [...favs].sort((a,b)=>a.team.localeCompare(b.team,'sv') || ((cat.find(c=>c.id===a.lid)?.age||99)-(cat.find(c=>c.id===b.lid)?.age||99)));

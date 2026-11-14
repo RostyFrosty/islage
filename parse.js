@@ -177,11 +177,20 @@ export function parseGame(html, id) {
         const per = divs.find(x => /^\(/.test(x)); if (per) g.periods = per.replace(/[()]/g, '').split(',').map(p => p.trim().split('-').map(Number));
         const st = divs.find(x => x && !/^\(|^\d+\s*-\s*\d+|spectators/i.test(x)) || '';
         g.status = /final|game finished|slut/i.test(st) ? 'final' : sc ? 'live' : 'upcoming';
-        if (g.status === 'live') g.clock = st ? st.replace(/(\d)(st|nd|rd|th)\s+period/i, 'P$1').replace(/overtime/i, 'Förlängning').replace(/intermission/i, 'Periodpaus') : null;
+        if (g.status === 'live') g.clock = st ? st.replace(/(\d)(st|nd|rd|th)\s+period/i, 'P$1').replace(/overtime/i, 'Förlängning').replace(/intermission/i, 'Periodpaus').replace(/^P(\d)\s+ended$/i, 'Paus efter P$1').replace(/^overtime ended$/i,'Förlängning slut') : null;
         g.spectators = num((divs.find(x => /spectators/i.test(x)) || '').replace(/\D/g, '')) || null;
       }
-      const ps = c.filter(x => /^\([\d:]+\)$/.test(x.text)).map(x => x.text.replace(/[()]/g, '').split(':').map(Number));
-      if (ps.length === 2) perShots = ps;
+      /* Skott per period "(8:10)"; pågående period står som "-" tills den är rapporterad, t.ex. "(7:-)" */
+      const ps = c.filter(x => /^\([\d:\-\s]+\)$/.test(x.text) && /\d/.test(x.text)).map(x => x.text.replace(/[()\s]/g, '').split(':').map(v => /^\d+$/.test(v) ? +v : null));
+      if (ps.length === 2 && c.some(x => /^shots$/i.test(x.text))) {
+        /* totalen står i cellen efter "Shots" – är den större än periodernas summa hör skillnaden till pågående period */
+        const tot = c.map((x, i) => /^shots$/i.test(x.text) ? num(c[i + 1]?.text) : null).filter(v => v != null);
+        perShots = ps.map((arr, k) => {
+          const out = arr.slice(), known = out.reduce((a, v) => a + (v || 0), 0), gap = out.indexOf(null);
+          if (gap >= 0) out[gap] = Math.max(0, (tot[k] ?? known) - known);
+          return out.map(v => v ?? 0);
+        });
+      }
       continue;
     }
     if (t0 === 'PIM') { const v = c.filter(x => /^\d+$/.test(x.text)).map(x => +x.text); if (v.length >= 2) g.pim = [v[0], v[1]]; continue; }

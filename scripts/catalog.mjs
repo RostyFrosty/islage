@@ -30,6 +30,11 @@ async function page(path) {
   }
   return '';
 }
+/** Översiktssidan saknar rullistor för vissa serier (t.ex. Blekinge, Hälsingland, Västmanland) – då har schemasidan dem. */
+async function leaguePage(id) {
+  const html = await page(`/ScheduleAndResults/Overview/${id}`);
+  return /<select/i.test(html) ? html : (await page(`/ScheduleAndResults/Schedule/${id}`)) || html;
+}
 async function pool(items, fn) {
   const out = []; let i = 0;
   await Promise.all(Array.from({ length: PARALLEL }, async () => {
@@ -65,7 +70,7 @@ const families = [
 ];
 console.log('Läser distriktens serielistor …');
 await pool(menu.districts, async d => {
-  const sel = parseSelects(await page(`/ScheduleAndResults/Overview/${d.id}`));
+  const sel = parseSelects(await leaguePage(d.id));
   for (const f of sel.families) families.push({ id: f.id, name: f.name, gender: 'H', area: d.name, region: d.region });
   console.log(`  ${d.name}: ${sel.families.length} serier`);
 });
@@ -79,7 +84,7 @@ const Y = +season.slice(0, 4) || new Date().getFullYear() - (new Date().getMonth
 const curDate = new RegExp(`\\b(${Y}-(0[89]|1[0-2])|${Y + 1}-0[1-7])-\\d\\d\\b`);
 const leaves = new Map(); let old = 0;
 await pool(fams, async f => {
-  const html = await page(`/ScheduleAndResults/Overview/${f.id}`);
+  const html = await leaguePage(f.id);
   if (!html) return;
   const own = seasonOf(html, f.id), main = html.slice(html.indexOf('TSMstats'));
   const groups = parseSelects(html).groups.map(g => ({ id: g.id, name: decode(g.name) })).filter(g => !SKIP.test(g.name));

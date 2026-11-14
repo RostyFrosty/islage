@@ -1,0 +1,12 @@
+{
+  "appId": "com.rostyfrosty.islage",
+  "appName": "Isläge",
+  "webDir": "site",
+  "server": {
+    "url": "https://islage.geapanenbanan.com",
+    "allowNavigation": ["islage.geapanenbanan.com"]
+  },
+  "android": {
+    "backgroundColor": "#0b1220"
+  }
+}

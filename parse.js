@@ -196,7 +196,7 @@ export function parseGame(html, id) {
     if (!/^\d{1,3}:\d\d$/.test(time.text) || period == null) continue;
     const goal = type.text.match(/^(\d+)\s*-\s*(\d+)(?:\s*\(([^)]+)\))?/);
     if (goal) {
-      const scorer = text(who.html.split(/<span/i)[0]).replace(/^\d+\.\s*/, '');
+      const scorer = text(who.html.split(/<span|<div/i)[0]).replace(/^\d+\.\s*/, '');
       const assists = [...who.html.matchAll(/<div[^>]*>([\s\S]*?)<\/div>/gi)].map(x => flipName(text(x[1]).replace(/^\d+\.\s*/, ''))).filter(Boolean);
       g.events.push({ period, time: time.text, type: 'goal', team: teamOf(team.text), title: 'Mål – ' + flipName(scorer),
         text: [assists.length ? 'Assist: ' + assists.join(', ') : 'Ingen assist', goal[3] && goal[3] !== 'EQ' ? goal[3] : ''].filter(Boolean).join(' · '),

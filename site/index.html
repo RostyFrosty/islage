@@ -206,7 +206,7 @@ nav.bottom svg{width:22px;height:22px}
 const ON_SITE = location.protocol === 'https:' && !/claude|anthropic|usercontent|localhost/.test(location.hostname);
 const API_BASE  = ON_SITE ? location.origin : '';          // Workern: /api/…
 const DATA_BASE = ON_SITE ? location.origin + '/data' : ''; // statiska filer från GitHub Actions
-const APP_VERSION = '1.6 · 14 nov 2026';
+const APP_VERSION = '1.7 · 14 nov 2026';
 const LIVE_POLL_MS = 15000;
 
 /* ---------- Lag: förkortning + färg (egna badges, inga logotyper) ---------- */
@@ -377,8 +377,8 @@ const api = {
     if(API_BASE) return this.get(`${API_BASE}/api/league/${lg.id}/${workerPath||file}`);
     return null;
   },
-  async games(date){ return API_BASE ? this.get(`${API_BASE}/api/games?date=${date}`) : DEMO.games.filter(x=>x.date===date); },
-  async leagueGames(lg){ return (await this.series(lg,'games')) ?? DEMO.games.filter(x=>x.league===lg.name); },
+  async games(date){ return learnFromList(API_BASE ? await this.get(`${API_BASE}/api/games?date=${date}`) : DEMO.games.filter(x=>x.date===date)); },
+  async leagueGames(lg){ const l = (await this.series(lg,'games')) ?? DEMO.games.filter(x=>x.league===lg.name); (l||[]).forEach(x=>{ if(!x.leagueId) x.leagueId=lg.id; }); return learnFromList(l); },
   async standings(lg){
     const r = await this.series(lg,'standings'); if(r) return r;
     const key = {'20961':'shl','20962':'ha'}[lg.id];
@@ -448,6 +448,20 @@ function toggleFav(t, lid){
   saveFavs(); render(true);
 }
 
+/* Antal ordinarie perioder: ungdomsserier spelar ofta 2. Swehockey lägger då förlängningen som tredje
+   resultat (och händelserna som period 4), så vi lär oss per serie: 2 perioder i ett slutresultat,
+   eller förlängning utan period 3 → serien har 2. Händelser i period 3 → 3. */
+let leagueReg = {}; try{ leagueReg = JSON.parse(localStorage.getItem('isl-reg')||'{}'); }catch(e){}
+function learnReg(lid, r){ if(lid && leagueReg[lid]!==r){ leagueReg[lid]=r; try{ localStorage.setItem('isl-reg', JSON.stringify(leagueReg)); }catch(e){} } }
+function learnFromList(list){ (list||[]).forEach(x=>{ if(x.status==='final' && x.periods && x.periods.length===2) learnReg(x.leagueId, 2); }); return list; }
+const regOf = x => x.reg || leagueReg[x.leagueId] || (x.periods.length===2 ? 2 : 3);
+/* [{lab:'P1'|'ÖT'|'Straff', s:'1-0', reg:true}] – en avslutande 0-0 efter ordinarie tid (ingen förlängning spelad) tas bort */
+function periodParts(x){
+  const R = regOf(x), p = (x.periods||[]).slice();
+  if(p.length===R+1 && p[R][0]===0 && p[R][1]===0 && x.status==='final') p.pop();
+  return p.map((q,i)=>({lab: i<R ? 'P'+(i+1) : i===R ? 'ÖT' : 'Straff', s:`${q[0]}-${q[1]}`, reg:i<R}));
+}
+const perLabel = n => n===4 ? 'Förlängning' : n===5 ? 'Straffläggning' : `Period ${n}`;
 const todaySE = () => new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm'});
 let route = {view:'today'}, selDate = API_BASE ? todaySE() : DEMO_DATE;
 let leagueTab = 'table', leagueFilter = 'Alla';
@@ -483,7 +497,7 @@ function gameCard(x){
   const done = x.status!=='upcoming';
   const hw = done && x.hs>x.as, aw = done && x.as>x.hs;
   const right = x.status==='live' ? `<span class="livetag">LIVE</span><span class="per">${x.clock||''}</span>`
-    : x.status==='final' ? `<span>Slut</span><span class="per">${x.periods.map(p=>p.join('-')).join(', ')}</span>`
+    : x.status==='final' ? `<span>Slut</span><span class="per">${periodParts(x).map(p=>p.reg?p.s:`${p.lab} ${p.s}`).join(', ')}</span>`
     : `<span>${route.view==='today'?'':fmtDate(x.date)+' · '}${x.time}</span><span class="per">${x.venue||''}</span>`;
   const fav = isFav(x.home, x.leagueId)||isFav(x.away, x.leagueId);
   return `<button class="game ${x.status==='live'?'live':''}" data-game="${x.id}">
@@ -661,6 +675,10 @@ async function viewGame(){
   const x = await api.game(route.id);
   lastGameStatus = x.status; lastUpdated = new Date();
   const lid = x.leagueId || gameLeague[route.id] || '';
+  if(!x.leagueId) x.leagueId = lid;
+  { const ps = new Set((x.events||[]).map(e=>e.period));
+    if(ps.has(3)) { x.reg=3; learnReg(lid,3); }
+    else if(ps.has(4)||ps.has(5)||(x.status==='final'&&x.periods.length===2)) { x.reg=2; learnReg(lid,2); } }
   /* markera nya händelser och meddela nya mål */
   const prev = seenEvents[route.id];
   (x.events||[]).forEach(e=>{ if(prev && !prev.has(evKey(e))){ e.fresh=true; if(e.type==='goal' && API_BASE) toast(`MÅL! ${abbr(e.team)} ${e.score||''} – ${e.title.replace('Mål – ','')}`); } });
@@ -674,7 +692,7 @@ async function viewGame(){
     <div class="big num">${done?`${x.hs}<span style="color:var(--dim)">–</span>${x.as}`:'<span style="font-size:32px;color:var(--muted)">vs</span>'}</div>
     <div class="side">${badge(x.away,'lg')}${x.away}</div></div>
     <div class="status">${status}</div>
-    ${done?`<div class="pers">${x.periods.map((p,i)=>`<span class="${x.status==='live'&&i===curPer-1?'cur':''}">P${i+1} ${p[0]}-${p[1]}</span>`).join('')}</div>`:''}
+    ${done?`<div class="pers">${periodParts(x).map((p,i)=>`<span class="${x.status==='live'&&i===curPer-1?'cur':''}">${p.lab} ${p.s}</span>`).join('')}</div>`:''}
     <div style="display:flex;gap:8px;justify-content:center">
       <button class="favbtn" data-fav="${x.home}" data-fav-league="${lid}">${isFav(x.home, lid)?'★':'☆'} ${abbr(x.home)}</button>
       <button class="favbtn" data-fav="${x.away}" data-fav-league="${lid}">${isFav(x.away, lid)?'★':'☆'} ${abbr(x.away)}</button></div>
@@ -698,7 +716,7 @@ async function viewGame(){
   const evIcon={goal:'●',pen:'⏱',gk:'⇄'};
   let tl='', lastP=0;
   [...x.events].sort((a,b)=>b.period-a.period||b.time.localeCompare(a.time)).forEach(e=>{
-    if(e.period!==lastP){ tl+=`<div class="perhead">Period ${e.period}</div>`; lastP=e.period; }
+    if(e.period!==lastP){ tl+=`<div class="perhead">${perLabel(e.period)}</div>`; lastP=e.period; }
     tl+=`<div class="ev ${e.type} ${e.fresh?'new':''}"><div class="tm">${e.time}</div><div class="body"><span class="ico">${evIcon[e.type]||'•'}</span>
       <div><b>${e.title}</b><small>${abbr(e.team)} · ${e.text||''}</small></div>${e.score?`<span class="sc">${e.score}</span>`:''}</div></div>`;
     e.fresh=false;

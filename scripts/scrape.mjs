@@ -28,7 +28,7 @@ async function save(file, data) {
   await writeFile(url, JSON.stringify(data));
 }
 
-async function standings(id) {
+async function fetchStandings(id) {
   return parseStandings(await page(`/ScheduleAndResults/Standings/${id}`).catch(() => ''));
 }
 
@@ -39,7 +39,7 @@ for (const lg of leagues) {
   const result = { ...lg, ok: true };
   try {
     const [standings, scorers, games] = [
-      await standings(lg.id),
+      await fetchStandings(lg.id),
       parseScorers(await page(`/Players/Statistics/ScoringLeaders/${lg.id}`).catch(() => ''), HIDDEN),
       parseGameList(await page(`/ScheduleAndResults/Schedule/${lg.id}`), { leagueId: lg.id, league: lg.name })
     ];

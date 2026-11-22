@@ -333,7 +333,7 @@ export function parseLivePage(html) {
     const key = id || names.join('|'); if (seen.has(key)) continue; seen.add(key);
     out.push({ id, home: names[0], away: names[1], hs: sc ? +sc[1] : null, as: sc ? +sc[2] : null,
       periods: per ? per[1].split(',').map(x => x.trim().split('-').map(Number)) : [], status,
-      clock: status === 'live' ? st.replace(/(\d)(st|nd|rd|th)\s+period/i, 'P$1').replace(/overtime/i, 'Förlängning').replace(/intermission/i, 'Periodpaus').replace(/\s*\(00:00\)/, '').replace(/\s*\((\d\d:\d\d)\)/, ' $1') : null });
+      clock: status === 'live' ? st.replace(/(\d)(st|nd|rd|th)\s+period/i, 'P$1').replace(/overtime/i, 'Förlängning').replace(/intermission/i, 'Periodpaus').replace(/\s*\(00:00\)/, '').replace(/\s*\((\d\d:\d\d)\)/, ' $1').replace(/Powerplay \((\d) on (\d)\) for (\S+)/i, 'PP $3 ($1 mot $2)').replace(/^Waiting for/i, 'Väntar på') : null });
   }
   return out;
 }

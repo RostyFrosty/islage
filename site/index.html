@@ -206,7 +206,7 @@ nav.bottom svg{width:22px;height:22px}
 const ON_SITE = location.protocol === 'https:' && !/claude|anthropic|usercontent|localhost/.test(location.hostname);
 const API_BASE  = ON_SITE ? location.origin : '';          // Workern: /api/…
 const DATA_BASE = ON_SITE ? location.origin + '/data' : ''; // statiska filer från GitHub Actions
-const APP_VERSION = '2.1 · 22 nov 2026';
+const APP_VERSION = '2.2 · 22 nov 2026';
 const LIVE_POLL_MS = 15000;
 
 /* ---------- Lag: förkortning + färg (egna badges, inga logotyper) ---------- */
@@ -633,7 +633,7 @@ async function viewLeague(){
   const tabs = sub+`<div class="tabs">${[['today','Idag'],['table','Tabell'],['games','Matcher'],...(kids?[]:[['scorers','Poängliga']])].map(([k,t])=>`<button class="${leagueTab===k?'on':''}" data-ltab="${k}">${t}</button>`).join('')}</div>`;
   let body='';
   if(leagueTab==='today'){
-    const day = (await api.games(selDate)).filter(x=>x.leagueId===lg.id);
+    const day = await freshenStarted((await api.games(selDate)).filter(x=>x.leagueId===lg.id));
     const order={live:0,upcoming:1,final:2};
     body = day.length ? `<h2 class="sec">${fmtDate(selDate)}${day.some(x=>x.status==='live')?' <span class="livetag" style="margin-left:6px">live</span>':''}</h2><div class="games">${day.sort((a,b)=>order[a.status]-order[b.status]||a.time.localeCompare(b.time)).map(gameCard).join('')}</div>`
       : empty('🗓️',`Inga matcher ${fmtDate(selDate)}.<br>Se fliken Matcher för hela schemat.`);
@@ -675,7 +675,18 @@ async function withFreshToday(list, lid){
   if(!API_BASE || !list.some(g=>g.date===today)) return list;
   let fresh = [];
   try{ fresh = (await api.games(today)).filter(g=>!lid || g.leagueId===lid || !g.leagueId); }catch(e){ return list; }
-  return list.map(g => g.date!==today ? g : (fresh.find(f=>f.home===g.home && f.away===g.away) || g));
+  return freshenStarted(list.map(g => g.date!==today ? g : (fresh.find(f=>f.home===g.home && f.away===g.away) || g)));
+}
+/* Dagens lista hinner bara livekontrollera ett urval matcher. Matcher som borde ha startat men
+   inte är markerade som live/slut frågas efter direkt (gäller favoritlag och serien man tittar på). */
+async function freshenStarted(list, max=12){
+  if(!API_BASE) return list;
+  const today = todaySE(), [h,m] = new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour12:false}).split(':').map(Number), now = h*60+m;
+  const due = list.filter(g=>{ if(g.date!==today || g.status!=='upcoming' || !/^\d+$/.test(g.id)) return false;
+    const [a,b] = (g.time||'').split(':').map(Number); const t = a*60+b; return !isNaN(t) && t<=now && now-t<240; }).slice(0,max);
+  await Promise.all(due.map(async g=>{ try{ const d = await api.game(g.id);
+    if(d && d.status && d.status!=='upcoming'){ g.status=d.status; g.clock=d.clock; g.hs=d.hs; g.as=d.as; g.periods=d.periods||[]; } }catch(e){} }));
+  return list;
 }
 /* liveuppdatering: kom ihåg vilka händelser som redan visats per match */
 const seenEvents = {};
@@ -784,6 +795,8 @@ async function viewFavs(){
   const teamIdx = await teamIndex();
   /* dagens matcher fångar nya serier som ännu inte finns i lagregistret */
   const today = API_BASE ? await api.games(todaySE()).catch(()=>[]) : [];
+  const favTeams = new Set(favs.map(f=>f.team));
+  await freshenStarted(today.filter(g=>favTeams.has(g.home)||favTeams.has(g.away)));
   /* serier per favoritlag: lagregistret + serien där laget stjärnmärktes + dagens matcher, alla i samma klass */
   const seriesFor = f => {
     const ids = new Set();

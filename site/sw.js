@@ -4,7 +4,7 @@
  * - API-anrop: nätet först, senast hämtade svar som reserv offline.
  * Höj VERSION vid större ändringar så att gamla cacher rensas.
  */
-const VERSION = 'islage-v11';
+const VERSION = 'islage-v12';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {

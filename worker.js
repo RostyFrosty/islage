@@ -19,7 +19,8 @@ import { parseGameList, parseStandings, parseScorers, parseGame, parseSelects, p
 
 const SRC = 'https://stats.swehockey.se';
 const TTL = { live: 20, day: 120, league: 600, final: 3600 };
-const LIVE_CHECKS = 25;   // max antal matchrapporter som kontrolleras per anrop (Workers har gräns för antal hämtningar)
+const LIVE_CHECKS = 30;
+const FINALS = new Map();   // match-ID → slutresultat, så att färdiga matcher inte kontrolleras igen   // max antal matchrapporter som kontrolleras per anrop (Workers har gräns för antal hämtningar)
 
 export default {
   async fetch(req, env, ctx) {
@@ -71,12 +72,18 @@ const nowMinutes = () => { const [h, m] = new Date().toLocaleTimeString('sv-SE',
 async function checkLive(games, ctx) {
   const now = nowMinutes();
   const started = g => { const [h, m] = (g.time || '').split(':').map(Number); if (isNaN(h)) return false; const t = h * 60 + m; return t <= now && now - t < 210; };
-  const candidates = games.filter(g => /^\d+$/.test(g.id) && g.status !== 'cancelled' && started(g)).slice(0, LIVE_CHECKS);
+  const startMin = g => { const [h, m] = g.time.split(':').map(Number); return h * 60 + m; };
+  /* färdiga matcher kommer vi ihåg (per Worker-instans), så kontrollerna räcker till dem som kan pågå */
+  for (const g of games) { const f = FINALS.get(g.id); if (f) Object.assign(g, f); }
+  const candidates = games.filter(g => /^\d+$/.test(g.id) && g.status !== 'cancelled' && g.status !== 'final' && !FINALS.has(g.id) && started(g))
+    .sort((a, b) => startMin(b) - startMin(a))      /* senast startade först – mest troligt att de pågår */
+    .slice(0, LIVE_CHECKS);
   await Promise.all(candidates.map(async g => {
     try {
       const d = parseGame(await get(`/Game/Events/${g.id}`, TTL.live, ctx), g.id);
       g.status = d.status; g.clock = d.clock;
       if (d.hs != null) { g.hs = d.hs; g.as = d.as; g.periods = d.periods; }
+      if (d.status === 'final') { FINALS.set(g.id, { status: 'final', clock: null, hs: d.hs, as: d.as, periods: d.periods }); if (FINALS.size > 5000) FINALS.delete(FINALS.keys().next().value); }
     } catch { /* behåll det vi har */ }
   }));
 }

@@ -1,0 +1,14 @@
+name: Felsök match (tillfällig)
+on:
+  workflow_dispatch:
+    inputs:
+      a: { description: 'Lag 1', default: 'Nacka HK' }
+      b: { description: 'Lag 2', default: 'Haninge' }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - run: node scripts/debug-game.mjs "${{ inputs.a }}" "${{ inputs.b }}"

@@ -313,3 +313,27 @@ export function parseLineups(html, hidden = []) {
     teams: [luTeam(body.slice(hi, ai), home, hide), mirror(luTeam(body.slice(ai), away, hide))]
   };
 }
+
+/**
+ * Seriens livesida (/ScheduleAndResults/Live/{id}) – dagens matcher med länk till matchrapporten,
+ * ställning, perioder och status. Dagslistan (GamesByDate) saknar ibland länken för ungdomsmatcher,
+ * men här finns den. Mobilblocken ("TodaysGamesGame") används; varje match finns en gång där.
+ */
+export function parseLivePage(html) {
+  const out = [], seen = new Set();
+  const parts = html.split(/<div class="[^"]*\brow p-1 TodaysGamesGame"[^>]*>/).slice(1);
+  for (const p of parts) {
+    const names = [...p.matchAll(/class="h2 font-weight-bold">([^<]*)</g)].slice(0, 2).map(m => text(m[1]));
+    if (names.length < 2) continue;
+    const id = (p.match(/Game\/Events\/(\d+)/) || [])[1] || null;
+    const sc = p.match(/>\s*(\d+)\s*-\s*(\d+)\s*<\/a>/);
+    const per = p.match(/text-center">\s*\(\s*([\d\s,\-]+)\)\s*</);
+    const st = text((p.match(/TodaysGamesGame">\s*<div class="col-12[^"]*">([^<]*)</) || [])[1] || '');
+    const status = /final|game finished|slut/i.test(st) ? 'final' : sc || /period|overtime|shoot|intermission/i.test(st) ? 'live' : 'upcoming';
+    const key = id || names.join('|'); if (seen.has(key)) continue; seen.add(key);
+    out.push({ id, home: names[0], away: names[1], hs: sc ? +sc[1] : null, as: sc ? +sc[2] : null,
+      periods: per ? per[1].split(',').map(x => x.trim().split('-').map(Number)) : [], status,
+      clock: status === 'live' ? st.replace(/(\d)(st|nd|rd|th)\s+period/i, 'P$1').replace(/overtime/i, 'Förlängning').replace(/intermission/i, 'Periodpaus').replace(/\s*\(00:00\)/, '').replace(/\s*\((\d\d:\d\d)\)/, ' $1') : null });
+  }
+  return out;
+}

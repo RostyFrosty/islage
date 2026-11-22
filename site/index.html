@@ -206,7 +206,7 @@ nav.bottom svg{width:22px;height:22px}
 const ON_SITE = location.protocol === 'https:' && !/claude|anthropic|usercontent|localhost/.test(location.hostname);
 const API_BASE  = ON_SITE ? location.origin : '';          // Workern: /api/…
 const DATA_BASE = ON_SITE ? location.origin + '/data' : ''; // statiska filer från GitHub Actions
-const APP_VERSION = '2.2 · 22 nov 2026';
+const APP_VERSION = '2.3 · 22 nov 2026';
 const LIVE_POLL_MS = 15000;
 
 /* ---------- Lag: förkortning + färg (egna badges, inga logotyper) ---------- */
@@ -409,6 +409,7 @@ const api = {
     if(API_BASE) return this.get(`${API_BASE}/api/game/${id}/lineup`);
     return {available:false, demo:true, teams:[]};
   },
+  async leagueLive(lid){ return this.get(`${API_BASE}/api/league/${lid}/live`); },
   async game(id){
     if(API_BASE) return this.get(`${API_BASE}/api/game/${id}`);
     const gm = DEMO.games.find(x=>x.id===id);
@@ -682,8 +683,16 @@ async function withFreshToday(list, lid){
 async function freshenStarted(list, max=12){
   if(!API_BASE) return list;
   const today = todaySE(), [h,m] = new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour12:false}).split(':').map(Number), now = h*60+m;
-  const due = list.filter(g=>{ if(g.date!==today || g.status!=='upcoming' || !/^\d+$/.test(g.id)) return false;
-    const [a,b] = (g.time||'').split(':').map(Number); const t = a*60+b; return !isNaN(t) && t<=now && now-t<240; }).slice(0,max);
+  const isDue = g => { if(g.date!==today || g.status!=='upcoming') return false;
+    const [a,b] = (g.time||'').split(':').map(Number); const t = a*60+b; return !isNaN(t) && t<=now+5 && now-t<240; };
+  /* matcher utan rapport-ID: seriens livesida har ID och status för alla seriens matcher idag */
+  const noId = list.filter(g=>isDue(g) && !/^\d+$/.test(g.id) && g.leagueId);
+  const lids = [...new Set(noId.map(g=>g.leagueId))].slice(0,6);
+  await Promise.all(lids.map(async lid=>{ try{ const live = await api.leagueLive(lid);
+    noId.filter(g=>g.leagueId===lid).forEach(g=>{ const m = live.find(x=>x.home===g.home && x.away===g.away); if(!m) return;
+      if(m.id) g.id = m.id;
+      if(m.status!=='upcoming'){ g.status=m.status; g.clock=m.clock; g.hs=m.hs; g.as=m.as; g.periods=m.periods||[]; } }); }catch(e){} }));
+  const due = list.filter(g=>isDue(g) && /^\d+$/.test(g.id)).slice(0,max);
   await Promise.all(due.map(async g=>{ try{ const d = await api.game(g.id);
     if(d && d.status && d.status!=='upcoming'){ g.status=d.status; g.clock=d.clock; g.hs=d.hs; g.as=d.as; g.periods=d.periods||[]; } }catch(e){} }));
   return list;
@@ -702,6 +711,11 @@ async function viewGame(){
         const real = (await api.games(info.date)).find(g=>g.home===info.home && g.away===info.away && /^\d+$/.test(g.id));
         if(real){ gameLeague[real.id] = info.leagueId || real.leagueId; history.replaceState(null,'','#game-'+real.id); route = {view:'game', id:real.id}; return viewGame(); }
       }catch(e){}
+      /* dagslistan saknar ibland länken – seriens livesida har den */
+      if(info.leagueId){ try{
+        const m = (await api.leagueLive(info.leagueId)).find(g=>g.home===info.home && g.away===info.away && g.id);
+        if(m){ gameLeague[m.id] = info.leagueId; history.replaceState(null,'','#game-'+m.id); route = {view:'game', id:m.id}; return viewGame(); }
+      }catch(e){} }
     }
     header(info?.league || 'Match', true);
     return info

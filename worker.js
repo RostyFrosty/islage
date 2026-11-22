@@ -7,6 +7,7 @@
  *   GET /api/league/{id}/standings      tabell                          ← /ScheduleAndResults/Standings/{id}
  *   GET /api/league/{id}/scorers        poängliga                       ← /Players/Statistics/ScoringLeaders/{id}
  *   GET /api/league/{id}/groups         seriens övriga grupper          ← /ScheduleAndResults/Overview/{id}
+ *   GET /api/league/{id}/live           dagens matcher med rapport-ID och livestatus ← /ScheduleAndResults/Live/{id}
  *   GET /api/game/{id}                  matchrapport                    ← /Game/Events/{id}
  *   GET /api/game/{id}/lineup           laguppställning                 ← /Game/LineUps/{id}
  *
@@ -15,7 +16,7 @@
  */
 import HIDDEN from './hidden.json';
 import { attachStreams } from './streams.js';
-import { parseGameList, parseStandings, parseScorers, parseGame, parseSelects, parseLineups } from './parse.js';
+import { parseGameList, parseStandings, parseScorers, parseGame, parseSelects, parseLineups, parseLivePage } from './parse.js';
 
 const SRC = 'https://stats.swehockey.se';
 const TTL = { live: 20, day: 120, league: 600, final: 3600 };
@@ -34,7 +35,7 @@ export default {
         const date = url.searchParams.get('date') || today();
         const isToday = date === today();
         const games = parseGameList(await get(`/GamesByDate/${date}/ByTime/null`, isToday ? TTL.live : TTL.day, ctx), { date });
-        if (isToday) await checkLive(games, ctx);
+        if (isToday) { await checkLive(games, ctx); await resolveViaLive(games, ctx); }
         await attachStreams(games, date, (u, ttl) => getJson(u, ttl, ctx));
         return json(games, 200, isToday ? TTL.live : TTL.day);
       }
@@ -43,6 +44,7 @@ export default {
         if (p[3] === 'games')     return json(parseGameList(await get(`/ScheduleAndResults/Schedule/${id}`, TTL.league, ctx), { leagueId: id }), 200, TTL.league);
         if (p[3] === 'standings') return json(parseStandings(await get(`/ScheduleAndResults/Standings/${id}`, TTL.league, ctx)), 200, TTL.league);
         if (p[3] === 'scorers')   return json(parseScorers(await get(`/Players/Statistics/ScoringLeaders/${id}`, TTL.league, ctx), HIDDEN), 200, TTL.league);
+        if (p[3] === 'live')      return json(parseLivePage(await get(`/ScheduleAndResults/Live/${id}`, TTL.live, ctx)), 200, TTL.live);
         if (p[3] === 'groups')    return json(parseSelects(await get(`/ScheduleAndResults/Overview/${id}`, TTL.final, ctx)).groups, 200, TTL.final);
       }
       if (p[1] === 'game' && /^\d+$/.test(p[2] || '') && p[3] === 'lineup') {
@@ -84,6 +86,33 @@ async function checkLive(games, ctx) {
       g.status = d.status; g.clock = d.clock;
       if (d.hs != null) { g.hs = d.hs; g.as = d.as; g.periods = d.periods; }
       if (d.status === 'final') { FINALS.set(g.id, { status: 'final', clock: null, hs: d.hs, as: d.as, periods: d.periods }); if (FINALS.size > 5000) FINALS.delete(FINALS.keys().next().value); }
+    } catch { /* behåll det vi har */ }
+  }));
+}
+
+/**
+ * Dagslistan saknar ibland länken till matchrapporten (vanligt i ungdomsserier), så matchen får inget
+ * riktigt ID och ingen livestatus. Seriens livesida har länk, ställning och status för alla dagens
+ * matcher – en hämtning per serie. Serierna med senast startade matcher tas först.
+ */
+const LIVE_PAGES = 10;
+async function resolveViaLive(games, ctx) {
+  const now = nowMinutes();
+  const start = g => { const [h, m] = (g.time || '').split(':').map(Number); return isNaN(h) ? null : h * 60 + m; };
+  const due = games.filter(g => !/^\d+$/.test(g.id) && g.leagueId && g.status !== 'cancelled' && g.status !== 'final'
+    && start(g) != null && start(g) <= now + 5 && now - start(g) < 240);
+  const byLeague = new Map();
+  for (const g of due) { const l = byLeague.get(g.leagueId) || { latest: 0, games: [] }; l.latest = Math.max(l.latest, start(g)); l.games.push(g); byLeague.set(g.leagueId, l); }
+  const leagues = [...byLeague.entries()].sort((a, b) => b[1].latest - a[1].latest).slice(0, LIVE_PAGES);
+  await Promise.all(leagues.map(async ([lid, l]) => {
+    try {
+      const live = parseLivePage(await get(`/ScheduleAndResults/Live/${lid}`, TTL.live, ctx));
+      for (const g of l.games) {
+        const m = live.find(x => x.home === g.home && x.away === g.away);
+        if (!m) continue;
+        if (m.id) g.id = m.id;
+        if (m.status !== 'upcoming') { g.status = m.status; g.clock = m.clock; g.hs = m.hs; g.as = m.as; g.periods = m.periods; }
+      }
     } catch { /* behåll det vi har */ }
   }));
 }

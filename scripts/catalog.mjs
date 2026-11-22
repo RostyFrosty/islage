@@ -11,12 +11,13 @@
  * Kör: node scripts/catalog.mjs   (eller via .github/workflows/update-catalog.yml)
  */
 import { writeFile, mkdir } from 'node:fs/promises';
-import { parseMenu, parseSelects, decode } from '../parse.js';
+import { parseMenu, parseSelects, parseGameList, decode } from '../parse.js';
 
 const SRC = 'https://stats.swehockey.se';
 const PARALLEL = 3, PAUSE_MS = 400;
 const SKIP = /träningsmatch|preseason|preseson|preaseason|försäsong|camps|distriktslag|landskamp|veteran|rekreation|paraishockey|inline/i;
 const OUT = new URL('../site/data/catalog.json', import.meta.url);
+const TEAMS_OUT = new URL('../site/data/teams.json', import.meta.url);
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function page(path) {
@@ -107,7 +108,21 @@ const series = [...leaves.values()].sort((a, b) =>
   || (TOP[a.id] ?? 9) - (TOP[b.id] ?? 9) || (a.age ?? 99) - (b.age ?? 99) || a.name.localeCompare(b.name, 'sv'));
 const current = season;
 
+/* Lagregister: lagnamn → serier där laget spelar. Appen följer ett favoritlag i alla serier i samma
+   åldersklass – även nya serier (fortsättningsserier, DM) när katalogen uppdateras. */
+console.log(`Läser lagen i ${series.length} serier …`);
+const teams = {}; let noTeams = 0;
+await pool(series, async s => {
+  const games = parseGameList(await page(`/ScheduleAndResults/Schedule/${s.id}`), { leagueId: s.id });
+  const names = new Set(games.flatMap(g => [g.home, g.away]).filter(Boolean).map(n => decode(n).trim()));
+  if (!names.size) noTeams++;
+  for (const n of names) (teams[n] ||= []).push(s.id);
+});
+const sortedTeams = Object.fromEntries(Object.keys(teams).sort((a, b) => a.localeCompare(b, 'sv')).map(k => [k, teams[k].sort()]));
+console.log(`  ${Object.keys(sortedTeams).length} lag, ${noTeams} serier utan schema`);
+
 await mkdir(new URL('./', OUT), { recursive: true });
+if (Object.keys(sortedTeams).length > 100) await writeFile(TEAMS_OUT, JSON.stringify({ season: current, updated: new Date().toISOString(), teams: sortedTeams }));
 await writeFile(OUT, JSON.stringify({ season: current, updated: new Date().toISOString(), count: series.length, series }));
 console.log(`✓ ${series.length} serier/grupper för säsongen ${current}`);
 if (series.length < 50) { console.error('För få serier – har swehockey ändrat sidorna? Kontrollera parse.js.'); process.exit(1); }

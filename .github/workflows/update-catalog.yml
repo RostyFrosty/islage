@@ -2,7 +2,7 @@ name: Uppdatera seriekatalog
 
 on:
   schedule:
-    - cron: '15 3 * * 1'   # måndagar 04:15 svensk vintertid – nya serier dyker upp löpande under hösten
+    - cron: '15 3 * * 1,4'   # måndag + torsdag 04:15 svensk vintertid – nya serier och lag dyker upp löpande
   workflow_dispatch:
     inputs:
       full:

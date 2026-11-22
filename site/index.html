@@ -206,7 +206,7 @@ nav.bottom svg{width:22px;height:22px}
 const ON_SITE = location.protocol === 'https:' && !/claude|anthropic|usercontent|localhost/.test(location.hostname);
 const API_BASE  = ON_SITE ? location.origin : '';          // Workern: /api/…
 const DATA_BASE = ON_SITE ? location.origin + '/data' : ''; // statiska filer från GitHub Actions
-const APP_VERSION = '2.0 · 22 nov 2026';
+const APP_VERSION = '2.1 · 22 nov 2026';
 const LIVE_POLL_MS = 15000;
 
 /* ---------- Lag: förkortning + färg (egna badges, inga logotyper) ---------- */
@@ -444,6 +444,9 @@ const clsLabel = c => !c ? '' : c.startsWith('S-') ? (c==='S-F'?'Dam':'Herr') : 
 /* samma lag om namnet stämmer och klassen stämmer (eller, utan klass, samma serie) */
 const favMatch = (f, t, lid) => f.team===t && (!lid || (f.cls && clsOf(lid) ? f.cls===clsOf(lid) : f.lid===lid));
 const isFav = (t, lid) => favs.some(f => favMatch(f, t, lid));
+const favKey = f => [f.team, f.cls||'', f.lid||''].join('|');
+/* tar bort exakt den raden i Mina lag, oavsett hur favoriten en gång sparades */
+function removeFavByKey(k){ const f = favs.find(x=>favKey(x)===k); favs = favs.filter(x=>favKey(x)!==k); saveFavs(); if(f) toast(`${f.team} borttagen från Mina lag`); render(true); }
 function migrateFavs(){
   let changed = false;
   favs.forEach(f=>{ if(!f.cls && f.lid){ const c = clsOf(f.lid); if(c){ f.cls = c; changed = true; } } });
@@ -815,7 +818,7 @@ async function viewFavs(){
     const serChips = metas.length ? `<div class="chips" style="margin:0 0 8px">${metas.map(m=>`<button class="chip" data-league="${m.id}">${m.name} ›</button>`).join('')}</div>` : '';
     return `<div class="favhead ${open?'open':''}" data-favopen="${key.replace(/"/g,'&quot;')}">${badge(t)}<span class="fn"><b>${t}</b>${sub?`<small>${sub}</small>`:''}</span>
         ${status}<span class="fchev">›</span></div>
-      <div class="favgames" ${open?'':'hidden'}>${serChips}<div style="display:flex;gap:8px;justify-content:flex-end;margin:0 4px 8px"><button class="pill" data-fav="${t}" data-fav-league="${lid||ser[0]||''}">Ta bort</button></div>
+      <div class="favgames" ${open?'':'hidden'}>${serChips}<div style="display:flex;gap:8px;justify-content:flex-end;margin:0 4px 8px"><button class="pill" data-favdel="${favKey({team:t,cls,lid}).replace(/"/g,'&quot;')}">Ta bort</button></div>
       <div class="games">${[...live,...upcoming,...recent].map(gameCard).join('')||empty('🗓️',ser.length?'Inga matcher hittade':'Öppna en match med laget och stjärnmärk igen, så kopplas laget till sin serie')}</div></div>`;
   }).join(''));
 }
@@ -843,7 +846,8 @@ async function render(silent){
   }
 }
 app.addEventListener('click',e=>{
-  const t=e.target.closest('[data-tfilter],[data-favopen],[data-gtab],[data-lteam],[data-today],[data-favseries],[data-game],[data-league],[data-ltab],[data-filter],[data-fav],[data-age],[data-gender]'); if(!t) return;
+  const t=e.target.closest('[data-favdel],[data-tfilter],[data-favopen],[data-gtab],[data-lteam],[data-today],[data-favseries],[data-game],[data-league],[data-ltab],[data-filter],[data-fav],[data-age],[data-gender]'); if(!t) return;
+  if(t.dataset.favdel!==undefined){ e.stopPropagation(); removeFavByKey(t.dataset.favdel); return; }
   if(t.dataset.tfilter!==undefined){ const n=t.dataset.tfilter; if(!n) teamFilter.clear(); else teamFilter.has(n)?teamFilter.delete(n):teamFilter.add(n); render(true); return; }
   if(t.dataset.favopen!==undefined){ const k=t.dataset.favopen, open=!openFavs.has(k); open?openFavs.add(k):openFavs.delete(k);
     t.classList.toggle('open',open); const g=t.nextElementSibling; if(g) g.hidden=!open; return; }
